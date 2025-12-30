@@ -293,7 +293,7 @@ jobs:
         dotnet list package --vulnerable --deprecated --outdated
 
     - name: 运行CodeQL分析
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: csharp
 
@@ -302,7 +302,7 @@ jobs:
         dotnet build ${{ env.SOLUTION_NAME }} --no-restore
 
     - name: 执行CodeQL分析
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
 
   # 许可证检查
   license-check:
