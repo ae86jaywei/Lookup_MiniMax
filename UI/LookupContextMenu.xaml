@@ -1,0 +1,145 @@
+<ContextMenu x:Key="LookupContextMenu" 
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    Background="#FF2D2D2D" 
+                    Foreground="White"
+                    BorderBrush="#FF3C3C3C"
+                    BorderThickness="1">
+    
+    <ContextMenu.Resources>
+        <Style x:Key="MenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#FF3C3C3C"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,5,25,5"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FF404040"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="#FF666666"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <Style x:Key="HeaderMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="#FF1E1E1E"/>
+            <Setter Property="Foreground" Value="#FFCCCCCC"/>
+            <Setter Property="BorderBrush" Value="#FF3C3C3C"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+        </Style>
+        
+        <Style x:Key="SeparatorStyle" TargetType="Separator">
+            <Setter Property="Background" Value="#FF3C3C3C"/>
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Margin" Value="5,2"/>
+        </Style>
+    </ContextMenu.Resources>
+
+    <!-- 标签管理 -->
+    <MenuItem Header="删除查寻标签" 
+              Style="{StaticResource MenuItemStyle}"
+              Click="DeleteTagMenuItem_Click"
+              Tag="DeleteTag">
+        <MenuItem.Icon>
+            <TextBlock Text="🗑️" FontSize="12"/>
+        </MenuItem.Icon>
+    </MenuItem>
+
+    <!-- 动作选择集子菜单 -->
+    <MenuItem Header="动作选择集" 
+              Style="{StaticResource HeaderMenuItemStyle}"
+              Tag="ActionSelectionSet">
+        <MenuItem Header="新建选择集" 
+                  Style="{StaticResource MenuItemStyle}"
+                  Click="NewSelectionSetMenuItem_Click"
+                  Tag="NewSelectionSet">
+            <MenuItem.Icon>
+                <TextBlock Text="➕" FontSize="12"/>
+            </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="修改选择集" 
+                  Style="{StaticResource MenuItemStyle}"
+                  Click="ModifySelectionSetMenuItem_Click"
+                  Tag="ModifySelectionSet">
+            <MenuItem.Icon>
+                <TextBlock Text="✏️" FontSize="12"/>
+            </MenuItem.Icon>
+        </MenuItem>
+    </MenuItem>
+
+    <Separator Style="{StaticResource SeparatorStyle}"/>
+
+    <!-- 查寻表 -->
+    <MenuItem Header="显示查寻表" 
+              Style="{StaticResource MenuItemStyle}"
+              Click="ShowLookupTableMenuItem_Click"
+              Tag="ShowLookupTable">
+        <MenuItem.Icon>
+            <TextBlock Text="📋" FontSize="12"/>
+        </MenuItem.Icon>
+    </MenuItem>
+
+    <Separator Style="{StaticResource SeparatorStyle}"/>
+
+    <!-- 动作管理 -->
+    <MenuItem Header="重命名动作" 
+              Style="{StaticResource MenuItemStyle}"
+              Click="RenameActionMenuItem_Click"
+              Tag="RenameAction">
+        <MenuItem.Icon>
+            <TextBlock Text="🏷️" FontSize="12"/>
+        </MenuItem.Icon>
+    </MenuItem>
+
+    <Separator Style="{StaticResource SeparatorStyle}"/>
+
+    <!-- 显示控制 -->
+    <MenuItem Header="显示所有动作" 
+              Style="{StaticResource MenuItemStyle}"
+              Click="ShowAllActionsMenuItem_Click"
+              Tag="ShowAllActions">
+        <MenuItem.Icon>
+            <TextBlock Text="👁️" FontSize="12"/>
+        </MenuItem.Icon>
+    </MenuItem>
+    
+    <MenuItem Header="隐藏所有动作" 
+              Style="{StaticResource MenuItemStyle}"
+              Click="HideAllActionsMenuItem_Click"
+              Tag="HideAllActions">
+        <MenuItem.Icon>
+            <TextBlock Text="🙈" FontSize="12"/>
+        </MenuItem.Icon>
+    </MenuItem>
+
+    <Separator Style="{StaticResource SeparatorStyle}"/>
+
+    <!-- 属性和设置 -->
+    <MenuItem Header="属性" 
+              Style="{StaticResource MenuItemStyle}"
+              Click="PropertiesMenuItem_Click"
+              Tag="Properties">
+        <MenuItem.Icon>
+            <TextBlock Text="⚙️" FontSize="12"/>
+        </MenuItem.Icon>
+    </MenuItem>
+    
+    <MenuItem Header="设置..." 
+              Style="{StaticResource MenuItemStyle}"
+              Click="SettingsMenuItem_Click"
+              Tag="Settings">
+        <MenuItem.Icon>
+            <TextBlock Text="🔧" FontSize="12"/>
+        </MenuItem.Icon>
+    </MenuItem>
+
+</ContextMenu>

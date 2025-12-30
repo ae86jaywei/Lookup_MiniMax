@@ -1,0 +1,72 @@
+# 依赖更新策略
+# 中望CAD动态块查寻插件
+
+version: 2
+updates:
+  # NuGet包更新
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    assignees:
+      - "maintainer-username"
+    reviewers:
+      - "maintainer-username"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "nuget"
+
+  # GitHub Actions更新
+  - package-ecosystem: "github-actions"
+    directory: "/.github/workflows"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    assignees:
+      - "maintainer-username"
+    reviewers:
+      - "maintainer-username"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "dependencies"
+
+# 自动合并规则
+# 仅限以下类型的安全更新
+automerge: true
+automerge-type: pr
+automerge-method: merge
+require-all-checks: true
+
+# 分组策略
+grouping:
+  - package-ecosystem: "nuget"
+    update-types: ["security-update"]
+    schedules:
+      - interval: "daily"
+        time: "06:00"
+    automerge: true
+
+  - package-ecosystem: "nuget"
+    update-types: ["version-update:semver-patch"]
+    schedules:
+      - interval: "weekly"
+        time: "06:00"
+
+# 忽略特定包
+ignore:
+  - dependency-name: "Microsoft.NET.Test.Sdk"
+    update-types: ["version-update:semver-minor"]
+
+  - dependency-name: "NUnit"
+    update-types: ["version-update:semver-minor"]

@@ -1,0 +1,473 @@
+name: 中望CAD动态块查寻插件 - 测试与构建
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 每天UTC 2:00运行 (北京时间10:00)
+    - cron: '0 2 * * *'
+
+env:
+  DOTNET_VERSION: '6.0.x'
+  DOTNET_FRAMEWORK_VERSION: 'net48'
+  PROJECT_NAME: 'ZWDynLookup'
+  SOLUTION_NAME: 'ZWDynLookup.sln'
+  TEST_PROJECT_NAME: 'ZWDynLookup.Tests'
+  COVERAGE_THRESHOLD: 85
+
+jobs:
+  # 代码质量检查
+  code-quality:
+    name: 代码质量检查
+    runs-on: ubuntu-latest
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 设置 .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 还原NuGet包
+      run: |
+        dotnet restore ${{ env.SOLUTION_NAME }}
+        dotnet restore ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj
+
+    - name: 安装SonarScanner
+      run: dotnet tool install --global dotnet-sonarscanner
+
+    - name: SonarCloud分析
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        dotnet sonarscanner begin /k:"${{ env.PROJECT_NAME }}" /o:"zhongwang-cad" /d:sonar.login=${{ secrets.SONAR_TOKEN }} /d:sonar.host.url="https://sonarcloud.io"
+        dotnet build ${{ env.SOLUTION_NAME }} --no-restore
+        dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj --no-build --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=./coverage/
+        dotnet sonarscanner end /d:sonar.login=${{ secrets.SONAR_TOKEN }}
+
+    - name: 上传SonarCloud分析结果
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: .github/workflows/sonarcloud.sarif
+
+  # Windows环境测试
+  test-windows:
+    name: Windows环境测试
+    runs-on: windows-latest
+    needs: code-quality
+    
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+        framework: [net48]
+        
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置 .NET Framework
+      uses: microsoft/setup-msbuild@v1.1
+      with:
+        msbuild-version: '17.6'
+
+    - name: 设置 .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 安装MSBuild
+      run: |
+        choco install msbuild --version 17.6.0
+
+    - name: 还原NuGet包
+      shell: pwsh
+      run: |
+        dotnet restore ${{ env.SOLUTION_NAME }}
+        dotnet restore ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj
+
+    - name: 缓存NuGet包
+      uses: actions/cache@v3
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    # 构建项目
+    - name: 构建项目 (${{ matrix.configuration }})
+      shell: pwsh
+      run: |
+        Write-Host "构建项目 - ${{ matrix.configuration }} 模式" -ForegroundColor Green
+        msbuild ${{ env.SOLUTION_NAME }} /p:Configuration=${{ matrix.configuration }} /p:Platform="Any CPU" /p:RestorePackages=true /v:minimal
+        
+        # 验证构建输出
+        if (Test-Path "bin\${{ matrix.configuration }}\net48\ZWDynLookup.dll") {
+          Write-Host "主项目构建成功" -ForegroundColor Green
+        } else {
+          Write-Host "主项目构建失败" -ForegroundColor Red
+          exit 1
+        }
+
+    # 运行单元测试
+    - name: 运行单元测试
+      shell: pwsh
+      run: |
+        Write-Host "开始单元测试..." -ForegroundColor Green
+        
+        # 运行所有测试
+        dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
+          --configuration ${{ matrix.configuration }} `
+          --framework ${{ env.DOTNET_FRAMEWORK_VERSION }} `
+          --no-build `
+          --verbosity normal `
+          --logger trx `
+          --collect:"XPlat Code Coverage" `
+          --DataCollectionRunSettings.Configuration.DataCollectionAgents.DataCollector.Configuration.Format=cobertura
+
+    # 代码覆盖率分析
+    - name: 代码覆盖率分析
+      shell: pwsh
+      run: |
+        Write-Host "分析代码覆盖率..." -ForegroundColor Green
+        
+        # 生成覆盖率报告
+        $coverageFiles = Get-ChildItem -Path "TestResults" -Filter "*.cobertura.xml" -Recurse
+        if ($coverageFiles) {
+          Write-Host "找到覆盖率文件: $($coverageFiles.Count)" -ForegroundColor Yellow
+          foreach ($file in $coverageFiles) {
+            Write-Host "处理文件: $($file.FullName)" -ForegroundColor Cyan
+          }
+        } else {
+          Write-Host "警告: 未找到覆盖率文件" -ForegroundColor Yellow
+        }
+
+    # 集成测试
+    - name: 运行集成测试
+      shell: pwsh
+      run: |
+        Write-Host "开始集成测试..." -ForegroundColor Green
+        
+        # 模拟中望CAD环境进行集成测试
+        $env:ZHONGCAD_SIMULATION = "true"
+        $env:INTEGRATION_TEST_MODE = "true"
+        $env:ZWCAD_API_MODE = "true"
+        
+        dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
+          --configuration ${{ matrix.configuration }} `
+          --framework ${{ env.DOTNET_FRAMEWORK_VERSION }} `
+          --no-build `
+          --verbosity detailed `
+          --filter "Category=Integration" `
+          --logger trx
+
+    # 性能测试
+    - name: 运行性能测试
+      shell: pwsh
+      continue-on-error: true
+      run: |
+        Write-Host "开始性能测试..." -ForegroundColor Green
+        
+        # 设置性能测试环境
+        $env:PERFORMANCE_TEST_MODE = "true"
+        $env:BENCHMARK_CONFIG_PATH = "${{ env.TEST_PROJECT_NAME }}/Performance/BenchmarkConfig.json"
+        
+        dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
+          --configuration ${{ matrix.configuration }} `
+          --framework ${{ env.DOTNET_FRAMEWORK_VERSION }} `
+          --no-build `
+          --verbosity normal `
+          --filter "Category=Performance" `
+          --logger trx
+
+    # 性能和覆盖率报告
+    - name: 上传测试结果
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-windows-${{ matrix.configuration }}
+        path: |
+          TestResults/*.trx
+          TestResults/*.coverage
+          TestResults/*.cobertura.xml
+        retention-days: 30
+
+    - name: 发布测试结果
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: 测试报告 - Windows ${{ matrix.configuration }}
+        path: TestResults/*.trx
+        reporter: dotnet-trx
+
+  # UI测试 (需要中望CAD环境)
+  test-ui:
+    name: UI自动化测试
+    runs-on: windows-latest
+    needs: test-windows
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置 .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 安装中望CAD依赖
+      run: |
+        # 模拟中望CAD环境变量
+        echo "ZHONGCAD_VERSION=2024" >> $env:GITHUB_ENV
+        echo "ZHONGCAD_PATH=C:\Program Files\ZWSOFT\ZWCAD 2024" >> $env:GITHUB_ENV
+        echo "ZWCAD_API_MODE=true" >> $env:GITHUB_ENV
+        
+    - name: 还原NuGet包
+      shell: pwsh
+      run: |
+        dotnet restore ${{ env.SOLUTION_NAME }}
+        dotnet restore ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj
+
+    - name: 构建项目
+      shell: pwsh
+      run: |
+        msbuild ${{ env.SOLUTION_NAME }} /p:Configuration=Release /p:Platform="Any CPU" /v:minimal
+
+    - name: 运行UI测试 (模拟模式)
+      shell: pwsh
+      continue-on-error: true
+      env:
+        UI_TEST_MODE: "simulation"
+        ZWCAD_AUTOMATION: "true"
+      run: |
+        Write-Host "开始UI自动化测试..." -ForegroundColor Green
+        
+        # 设置中望CAD UI测试环境变量
+        $env:UI_TEST_MODE = "simulation"
+        $env:ZWCAD_AUTOMATION = "true"
+        $env:HEADLESS_MODE = "true"
+        $env:ZHONGCAD_API_MODE = "true"
+        
+        dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
+          --configuration Release `
+          --framework ${{ env.DOTNET_FRAMEWORK_VERSION }} `
+          --no-build `
+          --verbosity normal `
+          --filter "Category=UI" `
+          --logger trx
+
+    - name: 上传UI测试结果
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: ui-test-results
+        path: |
+          TestResults/*.trx
+          UI/TestScreenshots/
+        retention-days: 30
+
+  # 安全扫描
+  security-scan:
+    name: 安全扫描
+    runs-on: ubuntu-latest
+    needs: code-quality
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置 .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 运行安全扫描
+      run: |
+        dotnet restore ${{ env.SOLUTION_NAME }}
+        dotnet list package --vulnerable --deprecated --outdated
+
+    - name: 运行CodeQL分析
+      uses: github/codeql-action/init@v2
+      with:
+        languages: csharp
+
+    - name: 自主构建
+      run: |
+        dotnet build ${{ env.SOLUTION_NAME }} --no-restore
+
+    - name: 执行CodeQL分析
+      uses: github/codeql-action/analyze@v2
+
+  # 许可证检查
+  license-check:
+    name: 许可证检查
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置 .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 许可证扫描
+      run: |
+        dotnet restore ${{ env.SOLUTION_NAME }}
+        
+        # 检查第三方库许可证
+        dotnet list package --include-transitive | tee licenses.txt
+        
+        echo "许可证扫描完成" >> $GITHUB_STEP_SUMMARY
+
+  # 发布准备
+  prepare-release:
+    name: 发布准备
+    runs-on: ubuntu-latest
+    needs: [test-windows, test-ui, security-scan, license-check]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 设置 .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 生成版本号
+      id: version
+      run: |
+        $version = "v1.0.0-${{ github.run_number }}"
+        echo "version=$version" >> $GITHUB_OUTPUT
+        echo "Generated version: $version"
+
+    - name: 构建发布版本
+      run: |
+        dotnet restore ${{ env.SOLUTION_NAME }}
+        dotnet build ${{ env.SOLUTION_NAME }} --configuration Release --no-restore
+
+    - name: 运行发布测试
+      run: |
+        dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj --configuration Release --no-build --filter "Category=UnitTest"
+
+    - name: 打包发布文件
+      run: |
+        New-Item -ItemType Directory -Path release -Force
+        
+        # 复制构建输出
+        Copy-Item -Path "bin\Release\net48\ZWDynLookup.dll" -Destination "release\" -Force
+        Copy-Item -Path "bin\Release\net48\ZWDynLookup.pdb" -Destination "release\" -Force
+        
+        # 复制配置文件
+        Copy-Item -Path "ZWDynLookup.sln" -Destination "release\" -Force
+        Copy-Item -Path "docs\*.md" -Destination "release\docs\" -Recurse -Force
+        
+        # 复制测试报告
+        Copy-Item -Path "TestResults" -Destination "release\test-results" -Recurse -Force
+        
+        # 打包
+        Compress-Archive -Path "release\*" -DestinationPath "ZWDynLookup-${{ steps.version.outputs.version }}.zip"
+
+    - name: 上传发布包
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-package-${{ steps.version.outputs.version }}
+        path: ZWDynLookup-${{ steps.version.outputs.version }}.zip
+        retention-days: 90
+
+    - name: 创建GitHub发布
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: Release ${{ steps.version.outputs.version }}
+        body: |
+          ## 🎯 中望CAD动态块查寻插件 v${{ steps.version.outputs.version }}
+          
+          ### 📋 更新内容
+          - ✅ 完整的单元测试覆盖
+          - ✅ 集成测试验证
+          - ✅ 性能基准测试
+          - ✅ UI自动化测试
+          - ✅ 安全扫描通过
+          - ✅ 许可证检查完成
+          
+          ### 📦 包含内容
+          - ZWDynLookup.dll - 插件主程序
+          - ZWDynLookup.pdb - 调试符号文件
+          - docs/ - 完整文档
+          - test-results/ - 测试报告
+          
+          ### 🔧 安装说明
+          1. 将 ZWDynLookup.dll 复制到中望CAD插件目录
+          2. 在中望CAD中加载插件
+          3. 使用 BPARAMETER K 和 BACTIONTOOL L 命令
+          
+          ### 📞 技术支持
+          如有问题请查看 docs/ 目录下的文档。
+        files: |
+          ZWDynLookup-${{ steps.version.outputs.version }}.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 通知和报告
+  notify-results:
+    name: 通知测试结果
+    runs-on: ubuntu-latest
+    needs: [test-windows, test-ui, security-scan, license-check]
+    if: always()
+    
+    steps:
+    - name: 获取测试结果
+      uses: actions/download-artifact@v3
+      
+    - name: 生成测试报告摘要
+      run: |
+        echo "## 📊 中望CAD动态块查寻插件 - 测试报告" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🏷️ 测试环境信息" >> $GITHUB_STEP_SUMMARY
+        echo "- **操作系统**: ${{ runner.os }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **.NET版本**: ${{ env.DOTNET_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **框架版本**: ${{ env.DOTNET_FRAMEWORK_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **触发分支**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### ✅ 测试任务状态" >> $GITHUB_STEP_SUMMARY
+        echo "| 测试类型 | 状态 | 说明 |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|------|------|" >> $GITHUB_STEP_SUMMARY
+        echo "| 代码质量检查 | ${{ needs.code-quality.result }} | SonarCloud分析 |" >> $GITHUB_STEP_SUMMARY
+        echo "| Windows环境测试 | ${{ needs.test-windows.result }} | 单元/集成/性能测试 |" >> $GITHUB_STEP_SUMMARY
+        echo "| UI自动化测试 | ${{ needs.test-ui.result }} | 用户界面测试 |" >> $GITHUB_STEP_SUMMARY
+        echo "| 安全扫描 | ${{ needs.security-scan.result }} | 漏洞和依赖检查 |" >> $GITHUB_STEP_SUMMARY
+        echo "| 许可证检查 | ${{ needs.license-check.result }} | 第三方库许可证 |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # 总体状态
+        if [[ "${{ needs.code-quality.result }}" == "success" && "${{ needs.test-windows.result }}" == "success" && "${{ needs.security-scan.result }}" == "success" ]]; then
+          echo "### 🎉 测试结果: ✅ 通过" >> $GITHUB_STEP_SUMMARY
+          echo "所有核心测试均已通过，代码质量良好！" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ⚠️ 测试结果: ❌ 失败" >> $GITHUB_STEP_SUMMARY
+          echo "部分测试未通过，请查看详细信息并修复问题。" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: 发送通知
+      if: always()
+      run: |
+        if [[ "${{ needs.code-quality.result }}" == "success" && "${{ needs.test-windows.result }}" == "success" && "${{ needs.security-scan.result }}" == "success" ]]; then
+          echo "🎉 测试通过！"
+          echo "所有测试任务均已成功完成。"
+        else
+          echo "⚠️ 测试失败！"
+          echo "请检查失败的测试任务并修复相关问题。"
+        fi

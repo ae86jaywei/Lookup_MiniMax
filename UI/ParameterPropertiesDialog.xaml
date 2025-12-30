@@ -1,0 +1,202 @@
+<Window x:Class="ZWDynLookup.UI.ParameterPropertiesDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="设置查寻参数属性" Height="450" Width="500"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="SingleBorderWindow"
+        ShowInTaskbar="False">
+    
+    <Window.Resources>
+        <!-- 按钮样式 -->
+        <Style x:Key="ButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="15,5"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="MinWidth" Value="75"/>
+            <Setter Property="Height" Value="25"/>
+        </Style>
+        
+        <!-- 标签样式 -->
+        <Style x:Key="LabelStyle" TargetType="Label">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,5"/>
+        </Style>
+        
+        <!-- 文本框样式 -->
+        <Style x:Key="TextBoxStyle" TargetType="TextBox">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,5"/>
+            <Setter Property="Padding" Value="3"/>
+        </Style>
+        
+        <!-- 复选框样式 -->
+        <Style x:Key="CheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        
+        <!-- 组合框样式 -->
+        <Style x:Key="ComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,5"/>
+            <Setter Property="Padding" Value="3"/>
+            <Setter Property="Height" Value="25"/>
+        </Style>
+        
+        <!-- 错误文本样式 -->
+        <Style x:Key="ErrorTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="Red"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+    </Window.Resources>
+    
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="120"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        
+        <!-- 参数名称 -->
+        <Label Grid.Row="0" Grid.Column="0" Content="参数名称(_N):" Style="{StaticResource LabelStyle}"/>
+        <Grid Grid.Row="0" Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBox x:Name="ParameterNameTextBox" 
+                     Style="{StaticResource TextBoxStyle}"
+                     Text="{Binding ParameterName, UpdateSourceTrigger=PropertyChanged}"
+                     KeyDown="ParameterNameTextBox_KeyDown"/>
+            <TextBlock x:Name="ParameterNameErrorTextBlock" 
+                       Style="{StaticResource ErrorTextStyle}"
+                       Grid.Row="1"/>
+        </Grid>
+        
+        <!-- 参数标签 -->
+        <Label Grid.Row="1" Grid.Column="0" Content="参数标签(_L):" Style="{StaticResource LabelStyle}"/>
+        <Grid Grid.Row="1" Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBox x:Name="LabelTextBox" 
+                     Style="{StaticResource TextBoxStyle}"
+                     Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"
+                     KeyDown="LabelTextBox_KeyDown"/>
+            <TextBlock x:Name="LabelErrorTextBlock" 
+                       Style="{StaticResource ErrorTextStyle}"
+                       Grid.Row="1"/>
+        </Grid>
+        
+        <!-- 参数说明 -->
+        <Label Grid.Row="2" Grid.Column="0" Content="参数说明(_D):" Style="{StaticResource LabelStyle}"/>
+        <Grid Grid.Row="2" Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBox x:Name="DescriptionTextBox" 
+                     Style="{StaticResource TextBoxStyle}"
+                     Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                     Height="60"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     KeyDown="DescriptionTextBox_KeyDown"/>
+            <TextBlock x:Name="DescriptionErrorTextBlock" 
+                       Style="{StaticResource ErrorTextStyle}"
+                       Grid.Row="1"/>
+        </Grid>
+        
+        <!-- 分隔线 -->
+        <Separator Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,15"/>
+        
+        <!-- 选项板设置 -->
+        <Label Grid.Row="4" Grid.Column="0" Content="选项板设置:" Style="{StaticResource LabelStyle}"/>
+        <CheckBox x:Name="ShowPaletteCheckBox" 
+                  Grid.Row="4" Grid.Column="1"
+                  Content="显示特性选项板(_P)"
+                  Style="{StaticResource CheckBoxStyle}"
+                  IsChecked="{Binding ShowPalette}"/>
+        
+        <!-- 夹点数量 -->
+        <Label Grid.Row="5" Grid.Column="0" Content="夹点数量:" Style="{StaticResource LabelStyle}"/>
+        <Grid Grid.Row="5" Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <ComboBox x:Name="GripCountComboBox" 
+                      Style="{StaticResource ComboBoxStyle}"
+                      SelectedValue="{Binding GripCount}"
+                      KeyDown="GripCountComboBox_KeyDown">
+                <ComboBoxItem Content="0" Tag="0"/>
+                <ComboBoxItem Content="1" Tag="1"/>
+            </ComboBox>
+            <TextBlock x:Name="GripCountErrorTextBlock" 
+                       Style="{StaticResource ErrorTextStyle}"
+                       Grid.Row="1"/>
+        </Grid>
+        
+        <!-- 参数预览 -->
+        <Label Grid.Row="6" Grid.Column="0" Content="参数预览:" Style="{StaticResource LabelStyle}"/>
+        <Border Grid.Row="6" Grid.Column="1" 
+                BorderBrush="Gray" BorderThickness="1" 
+                Background="#FFF5F5F5" Padding="10" Margin="0,5">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="PreviewNameTextBlock" 
+                           FontWeight="Bold" 
+                           Grid.Row="0"/>
+                <TextBlock x:Name="PreviewLabelTextBlock" 
+                           Grid.Row="1"/>
+                <TextBlock x:Name="PreviewGripTextBlock" 
+                           Grid.Row="2" 
+                           FontStyle="Italic"/>
+            </Grid>
+        </Border>
+        
+        <!-- 说明文字 -->
+        <TextBlock Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" 
+                   Text="提示：参数名称用于内部标识，标签显示在图形中，说明用于描述参数用途。"
+                   FontSize="10" 
+                   Foreground="Gray" 
+                   Margin="0,10"/>
+        
+        <!-- 按钮区域 -->
+        <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right" 
+                    Margin="0,20,0,0">
+            <Button x:Name="OKButton" 
+                    Content="确定(_O)" 
+                    Style="{StaticResource ButtonStyle}"
+                    IsDefault="True"
+                    Click="OKButton_Click"/>
+            <Button x:Name="CancelButton" 
+                    Content="取消(_C)" 
+                    Style="{StaticResource ButtonStyle}"
+                    IsCancel="True"
+                    Click="CancelButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,34 @@
+# CodeQL配置 - 安全分析
+# 中望CAD动态块查寻插件
+
+name: "CodeQL安全分析"
+
+queries:
+  - uses: security-extended
+
+paths-ignore:
+  - "**/TestResults/**"
+  - "**/bin/**"
+  - "**/obj/**"
+  - "**/packages/**"
+  - "**/.vs/**"
+  - "**/node_modules/**"
+
+paths:
+  - "Core/**/*.cs"
+  - "Services/**/*.cs" 
+  - "Commands/**/*.cs"
+  - "Models/**/*.cs"
+  - "UI/**/*.cs"
+  - "Helpers/**/*.cs"
+
+query-filters:
+  - include:
+      kind: problem
+      precision: high
+  - exclude:
+      id: js/useless-assignment-to-local
+      kind: path-problem
+      precision: medium
+
+disable-default-queries: false

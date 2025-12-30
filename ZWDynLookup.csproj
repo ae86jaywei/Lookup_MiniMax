@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AssemblyTitle>中望CAD动态块查寻插件</AssemblyTitle>
+    <AssemblyDescription>为中望CAD提供动态块查寻参数和动作的插件</AssemblyDescription>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Copyright>Copyright © 2024</Copyright>
+    <OutputType>Library</OutputType>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Design" />
+    <Reference Include="System.Web" />
+  </ItemGroup>
+
+  <!-- 中望CAD API 引用 -->
+  <ItemGroup>
+    <COMReference Include="ZwSoft.ZwCAD">
+      <WrapperTool>tlbimp</WrapperTool>
+      <VersionMinor>0</VersionMinor>
+      <VersionMajor>1</VersionMajor>
+      <Guid>12345678-1234-5678-9012-123456789012</Guid>
+      <Lcid>0</Lcid>
+      <Isolated>false</Isolated>
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Resources\**\*.cs">
+      <DependentUpon>%(Filename)</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\**\*.resx">
+      <DependentUpon>%(Filename)</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>
