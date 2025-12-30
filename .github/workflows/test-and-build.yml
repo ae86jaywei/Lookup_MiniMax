@@ -22,10 +22,10 @@ permissions:
   security-events: write
 
 jobs:
-  # 代码质量检查 - 使用Windows环境
+  # 代码质量检查 - 简化版本（移除有问题的MSBuild安装）
   code-quality:
     name: 代码质量检查
-    runs-on: windows-latest  # 改为Windows环境
+    runs-on: windows-latest
     
     steps:
     - name: 检出代码
@@ -34,18 +34,14 @@ jobs:
         fetch-depth: 0
 
     - name: 设置 .NET Framework
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@v1.3  # 更新到最新版本
       with:
-        msbuild-version: '17.6'
+        msbuild-version: 'latest'
 
     - name: 设置 .NET
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: 安装MSBuild
-      run: |
-        choco install msbuild --version 17.6.0
 
     - name: 还原NuGet包
       shell: pwsh
@@ -69,7 +65,33 @@ jobs:
       if: env.SONARCLOUD_SKIP == 'false'
       run: dotnet tool install --global dotnet-sonarscanner
 
-    - name: SonarCloud分析
+    - name: 构建项目（用于代码检查）
+      shell: pwsh
+      run: |
+        Write-Host "构建项目..." -ForegroundColor Green
+        
+        # 使用 setup-msbuild 提供的 msbuild
+        msbuild ${{ env.SOLUTION_NAME }} /p:Configuration=Release /p:Platform="Any CPU" /v:minimal
+        
+        if (Test-Path "bin\Release\net48\ZWDynLookup.dll") {
+          Write-Host "主项目构建成功" -ForegroundColor Green
+        } else {
+          Write-Host "主项目构建失败" -ForegroundColor Red
+          exit 1
+        }
+
+    - name: 运行测试（用于代码检查）
+      shell: pwsh
+      run: |
+        Write-Host "运行测试..." -ForegroundColor Green
+        
+        dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
+          --configuration Release `
+          --no-build `
+          --verbosity normal `
+          --logger "console;verbosity=normal"
+
+    - name: SonarCloud分析（如果配置）
       if: env.SONARCLOUD_SKIP == 'false'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,53 +104,40 @@ jobs:
           exit 1
         }
         
+        Write-Host "开始SonarScanner..." -ForegroundColor Cyan
         dotnet sonarscanner begin `
           /k:"${{ env.PROJECT_NAME }}" `
           /o:"ae86jaywei" `
-          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-          /d:sonar.host.url="https://sonarcloud.io"
+          /d:sonar.token="${{ env.SONAR_TOKEN }}" `
+          /d:sonar.host.url="https://sonarcloud.io" `
+          /d:sonar.cs.vstest.reportsPaths="**/*.trx" `
+          /d:sonar.coverage.exclusions="**/*Test*/**,**/Tests/**"
 
-    - name: 构建和测试（用于SonarCloud）
-      if: env.SONARCLOUD_SKIP == 'false'
-      shell: pwsh
-      run: |
-        Write-Host "构建项目..." -ForegroundColor Green
+        Write-Host "构建用于SonarCloud..." -ForegroundColor Cyan
         msbuild ${{ env.SOLUTION_NAME }} /p:Configuration=Release /p:Platform="Any CPU" /v:minimal
         
-        Write-Host "运行测试..." -ForegroundColor Green
+        Write-Host "运行测试用于SonarCloud..." -ForegroundColor Cyan
         dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
           --configuration Release `
           --no-build `
-          --verbosity normal `
+          --verbosity minimal `
           --collect:"XPlat Code Coverage"
 
-    - name: 结束SonarCloud分析
-      if: env.SONARCLOUD_SKIP == 'false'
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      shell: pwsh
-      run: |
-        Write-Host "结束SonarCloud分析..." -ForegroundColor Green
+        Write-Host "结束SonarScanner..." -ForegroundColor Cyan
         dotnet sonarscanner end /d:sonar.token="${{ env.SONAR_TOKEN }}"
 
-    - name: 基本代码质量检查（无SonarCloud）
-      if: env.SONARCLOUD_SKIP == 'true'
+    - name: 基本代码质量报告
       shell: pwsh
       run: |
-        Write-Host "执行基本代码质量检查..." -ForegroundColor Green
-        msbuild ${{ env.SOLUTION_NAME }} /p:Configuration=Release /p:Platform="Any CPU" /v:minimal
-        
-        Write-Host "运行测试..." -ForegroundColor Green
-        dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
-          --configuration Release `
-          --no-build `
-          --verbosity normal `
-          --logger "console;verbosity=normal"
-        
-        Write-Host "=== 代码质量检查 ===" -ForegroundColor Cyan
+        Write-Host "=== 代码质量检查报告 ===" -ForegroundColor Cyan
         Write-Host "1. 构建: ✅ 成功" -ForegroundColor Green
         Write-Host "2. 测试: ✅ 运行完成" -ForegroundColor Green
-        Write-Host "3. SonarCloud: ⚠️ 未配置" -ForegroundColor Yellow
+        
+        if ($env:SONARCLOUD_SKIP -eq 'true') {
+          Write-Host "3. SonarCloud: ⚠️ 未配置 (请在GitHub Secrets中添加SONAR_TOKEN)" -ForegroundColor Yellow
+        } else {
+          Write-Host "3. SonarCloud: ✅ 分析完成" -ForegroundColor Green
+        }
 
   # Windows环境测试
   test-windows:
@@ -146,18 +155,14 @@ jobs:
       uses: actions/checkout@v4
 
     - name: 设置 .NET Framework
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@v1.3
       with:
-        msbuild-version: '17.6'
+        msbuild-version: 'latest'
 
     - name: 设置 .NET
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: 安装MSBuild
-      run: |
-        choco install msbuild --version 17.6.0
 
     - name: 还原NuGet包
       shell: pwsh
@@ -177,10 +182,17 @@ jobs:
       shell: pwsh
       run: |
         Write-Host "构建项目 - ${{ matrix.configuration }} 模式" -ForegroundColor Green
-        msbuild ${{ env.SOLUTION_NAME }} /p:Configuration=${{ matrix.configuration }} /p:Platform="Any CPU" /p:RestorePackages=true /v:minimal
+        
+        # 清理构建目录
+        if (Test-Path "bin") {
+          Remove-Item -Path "bin" -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+        msbuild ${{ env.SOLUTION_NAME }} /p:Configuration=${{ matrix.configuration }} /p:Platform="Any CPU" /v:minimal
         
         if (Test-Path "bin\${{ matrix.configuration }}\net48\ZWDynLookup.dll") {
           Write-Host "主项目构建成功" -ForegroundColor Green
+          Write-Host "构建输出: bin\${{ matrix.configuration }}\net48\" -ForegroundColor Cyan
         } else {
           Write-Host "主项目构建失败" -ForegroundColor Red
           exit 1
@@ -200,8 +212,7 @@ jobs:
           --verbosity normal `
           --logger "trx;LogFileName=test-results.trx" `
           --results-directory TestResults `
-          --collect:"XPlat Code Coverage" `
-          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+          --collect:"XPlat Code Coverage"
 
     - name: 代码覆盖率分析
       shell: pwsh
@@ -233,9 +244,7 @@ jobs:
       run: |
         Write-Host "开始集成测试..." -ForegroundColor Green
         
-        $env:ZHONGCAD_SIMULATION = "true"
-        $env:INTEGRATION_TEST_MODE = "true"
-        $env:ZWCAD_API_MODE = "true"
+        $env:ZWCAD_SIMULATION = "true"
         
         dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
           --configuration ${{ matrix.configuration }} `
@@ -253,7 +262,6 @@ jobs:
         Write-Host "开始性能测试..." -ForegroundColor Green
         
         $env:PERFORMANCE_TEST_MODE = "true"
-        $env:BENCHMARK_CONFIG_PATH = "${{ env.TEST_PROJECT_NAME }}/Performance/BenchmarkConfig.json"
         
         dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
           --configuration ${{ matrix.configuration }} `
@@ -271,6 +279,7 @@ jobs:
         name: test-results-windows-${{ matrix.configuration }}
         path: |
           TestResults/
+          bin/${{ matrix.configuration }}/net48/
         retention-days: 30
 
     - name: 发布测试结果
@@ -291,21 +300,15 @@ jobs:
     - name: 检出代码
       uses: actions/checkout@v4
 
+    - name: 设置 .NET Framework
+      uses: microsoft/setup-msbuild@v1.3
+      with:
+        msbuild-version: 'latest'
+
     - name: 设置 .NET
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: 模拟中望CAD环境
-      shell: pwsh
-      run: |
-        Write-Host "设置中望CAD模拟环境..." -ForegroundColor Yellow
-        $env:ZHONGCAD_VERSION = "2024"
-        $env:ZHONGCAD_PATH = "C:\Program Files\ZWSOFT\ZWCAD 2024"
-        $env:ZWCAD_API_MODE = "true"
-        
-        New-Item -ItemType Directory -Path "ZWCAD_Mock" -Force
-        Write-Host "中望CAD模拟环境已设置" -ForegroundColor Green
 
     - name: 还原NuGet包
       shell: pwsh
@@ -326,12 +329,8 @@ jobs:
         
         New-Item -ItemType Directory -Path "UITestResults" -Force
         
-        $env:UI_TEST_MODE = "simulation"
         $env:ZWCAD_AUTOMATION = "true"
         $env:HEADLESS_MODE = "true"
-        $env:ZHONGCAD_API_MODE = "true"
-        
-        Write-Host "UI测试环境变量已设置" -ForegroundColor Yellow
         
         dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
           --configuration Release `
@@ -341,22 +340,6 @@ jobs:
           --filter "Category=UI" `
           --logger "trx;LogFileName=ui-results.trx" `
           --results-directory UITestResults
-        
-        Write-Host "UI测试完成" -ForegroundColor Green
-
-    - name: 收集UI测试截图
-      shell: pwsh
-      if: always()
-      run: |
-        Write-Host "收集UI测试截图..." -ForegroundColor Green
-        
-        New-Item -ItemType Directory -Path "UI/TestScreenshots" -Force
-        
-        if (-not (Test-Path "UI/TestScreenshots/*.png")) {
-          Write-Host "未找到截图，创建占位符文件" -ForegroundColor Yellow
-          $placeholder = "没有UI测试截图生成"
-          $placeholder | Out-File -FilePath "UI/TestScreenshots/placeholder.txt" -Encoding UTF8
-        }
 
     - name: 上传UI测试结果
       uses: actions/upload-artifact@v4
@@ -365,10 +348,9 @@ jobs:
         name: ui-test-results
         path: |
           UITestResults/
-          UI/TestScreenshots/
         retention-days: 30
 
-  # 安全扫描（保持在Linux，不构建.NET Framework项目）
+  # 安全扫描
   security-scan:
     name: 安全扫描
     runs-on: ubuntu-latest
@@ -383,14 +365,6 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: 运行安全扫描
-      run: |
-        echo "=== 检查NuGet包安全性 ==="
-        echo "注意: .NET Framework项目在Linux上无法构建，跳过包检查"
-        echo ""
-        echo "=== 代码安全扫描 ==="
-        echo "将使用CodeQL进行代码安全分析"
-
     - name: 运行CodeQL分析
       uses: github/codeql-action/init@v3
       with:
@@ -398,12 +372,18 @@ jobs:
 
     - name: 自主构建（仅测试项目）
       run: |
-        # 只构建测试项目（应该是.NET Standard或.NET Core）
+        # 只构建测试项目
         dotnet restore ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj
         dotnet build ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj --no-restore
 
     - name: 执行CodeQL分析
       uses: github/codeql-action/analyze@v3
+
+    - name: 安全检查总结
+      run: |
+        echo "=== 安全检查完成 ==="
+        echo "CodeQL 代码安全分析已执行"
+        echo "由于是.NET Framework项目，完整的包安全扫描需要在Windows上进行"
 
   # 许可证检查
   license-check:
@@ -421,16 +401,17 @@ jobs:
 
     - name: 许可证扫描
       run: |
-        echo "=== 项目依赖包 ===" | tee -a licenses.txt
-        echo "注意: 由于是.NET Framework项目，在Linux上无法完全扫描" | tee -a licenses.txt
+        echo "=== 许可证检查 ==="
+        echo "项目: 中望CAD动态块查寻插件"
         echo ""
-        echo "=== 许可证合规性检查 ===" | tee -a licenses.txt
-        echo "1. MIT许可证: 允许" | tee -a licenses.txt
-        echo "2. Apache 2.0许可证: 允许" | tee -a licenses.txt
-        echo "3. BSD许可证: 允许" | tee -a licenses.txt
-        echo "4. GPL许可证: 需要审查" | tee -a licenses.txt
-        
-        echo "许可证扫描完成" >> $GITHUB_STEP_SUMMARY
+        echo "主要许可证类型检查:"
+        echo "1. ✅ MIT许可证 - 允许商业使用"
+        echo "2. ✅ Apache 2.0许可证 - 允许商业使用"
+        echo "3. ✅ BSD许可证 - 允许商业使用"
+        echo "4. ⚠️ GPL许可证 - 需要谨慎使用"
+        echo ""
+        echo "建议: 检查项目使用的所有第三方库的许可证"
+        echo "可以在Windows环境中运行 'dotnet list package --include-transitive' 查看完整列表"
 
   # 发布准备
   prepare-release:
@@ -446,9 +427,9 @@ jobs:
         fetch-depth: 0
 
     - name: 设置 .NET Framework
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@v1.3
       with:
-        msbuild-version: '17.6'
+        msbuild-version: 'latest'
 
     - name: 设置 .NET
       uses: actions/setup-dotnet@v3
@@ -466,43 +447,56 @@ jobs:
     - name: 构建发布版本
       shell: pwsh
       run: |
-        dotnet restore ${{ env.SOLUTION_NAME }}
         msbuild ${{ env.SOLUTION_NAME }} /p:Configuration=Release /p:Platform="Any CPU" /v:minimal
 
-    - name: 运行发布测试
-      shell: pwsh
-      run: |
-        dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj --configuration Release --no-build --filter "Category=UnitTest"
-
-    - name: 打包发布文件
+    - name: 创建发布包
       shell: pwsh
       run: |
         # 创建发布目录
         New-Item -ItemType Directory -Path "release" -Force
         
-        # 复制构建输出
-        if (Test-Path "bin\Release\net48") {
-          Copy-Item -Path "bin\Release\net48\*" -Destination "release\" -Force -Recurse
-          Write-Host "已复制插件文件" -ForegroundColor Green
+        # 复制插件文件
+        if (Test-Path "bin\Release\net48\ZWDynLookup.dll") {
+          Copy-Item -Path "bin\Release\net48\ZWDynLookup.dll" -Destination "release\" -Force
+          Copy-Item -Path "bin\Release\net48\ZWDynLookup.pdb" -Destination "release\" -Force
+          Write-Host "✅ 已复制插件主文件" -ForegroundColor Green
         } else {
-          Write-Host "错误: 未找到构建输出" -ForegroundColor Red
+          Write-Host "❌ 错误: 未找到ZWDynLookup.dll" -ForegroundColor Red
           exit 1
+        }
+        
+        # 复制配置文件
+        if (Test-Path "ZWDynLookup.config") {
+          Copy-Item -Path "ZWDynLookup.config" -Destination "release\" -Force
+          Write-Host "✅ 已复制配置文件" -ForegroundColor Green
         }
         
         # 复制文档
         if (Test-Path "README.md") {
           Copy-Item -Path "README.md" -Destination "release\" -Force
+          Write-Host "✅ 已复制README文档" -ForegroundColor Green
         }
         
         if (Test-Path "docs") {
-          New-Item -ItemType Directory -Path "release\docs" -Force
-          Copy-Item -Path "docs\*.md" -Destination "release\docs\" -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path "docs" -Destination "release\" -Recurse -Force
+          Write-Host "✅ 已复制文档目录" -ForegroundColor Green
         }
         
-        # 打包
+        # 创建版本信息文件
         $version = "${{ steps.version.outputs.version }}"
+        $buildDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $versionInfo = @"
+中望CAD动态块查寻插件 - 版本信息
+版本: $version
+构建日期: $buildDate
+构建环境: GitHub Actions
+.NET Framework: 4.8
+"@
+        $versionInfo | Out-File -FilePath "release\版本信息.txt" -Encoding UTF8
+        
+        # 打包
         Compress-Archive -Path "release\*" -DestinationPath "ZWDynLookup-$version.zip" -Force
-        Write-Host "已创建发布包: ZWDynLookup-$version.zip" -ForegroundColor Green
+        Write-Host "✅ 已创建发布包: ZWDynLookup-$version.zip" -ForegroundColor Green
 
     - name: 上传发布包
       uses: actions/upload-artifact@v4
@@ -515,31 +509,28 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.version.outputs.version }}
-        name: Release ${{ steps.version.outputs.version }}
+        name: 中望CAD动态块查寻插件 ${{ steps.version.outputs.version }}
         body: |
           ## 🎯 中望CAD动态块查寻插件 ${{ steps.version.outputs.version }}
           
-          ### 📋 更新内容
-          - ✅ 完整的单元测试覆盖
-          - ✅ 集成测试验证
-          - ✅ 性能基准测试
-          - ✅ UI自动化测试
-          - ✅ 安全扫描通过
-          - ✅ 许可证检查完成
+          ### 📋 功能特性
+          - 动态块参数查询
+          - 批量参数处理
+          - 支持中望CAD 2024+
           
-          ### 📦 包含内容
+          ### 📦 包含文件
           - ZWDynLookup.dll - 插件主程序
           - ZWDynLookup.pdb - 调试符号文件
-          - docs/ - 完整文档
-          - test-results/ - 测试报告
+          - 版本信息.txt - 版本详情
+          - README.md - 使用说明
           
           ### 🔧 安装说明
           1. 将 ZWDynLookup.dll 复制到中望CAD插件目录
-          2. 在中望CAD中加载插件
-          3. 使用 BPARAMETER K 和 BACTIONTOOL L 命令
+          2. 在中望CAD中运行 NETLOAD 命令加载插件
+          3. 使用 BPARAMETER 和 BACTIONTOOL 命令进行操作
           
           ### 📞 技术支持
-          如有问题请查看 docs/ 目录下的文档。
+          查看 README.md 获取详细使用说明
         files: |
           ZWDynLookup-${{ steps.version.outputs.version }}.zip
       env:
@@ -558,9 +549,8 @@ jobs:
         echo "## 📊 中望CAD动态块查寻插件 - 测试报告" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 🏷️ 测试环境信息" >> $GITHUB_STEP_SUMMARY
-        echo "- **操作系统**: Windows/Linux" >> $GITHUB_STEP_SUMMARY
-        echo "- **.NET版本**: ${{ env.DOTNET_VERSION }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **框架版本**: ${{ env.DOTNET_FRAMEWORK_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **构建系统**: GitHub Actions" >> $GITHUB_STEP_SUMMARY
+        echo "- **.NET Framework**: 4.8" >> $GITHUB_STEP_SUMMARY
         echo "- **触发分支**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **触发事件**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -568,20 +558,20 @@ jobs:
         echo "### ✅ 测试任务状态" >> $GITHUB_STEP_SUMMARY
         echo "| 测试类型 | 状态 | 说明 |" >> $GITHUB_STEP_SUMMARY
         echo "|---------|------|------|" >> $GITHUB_STEP_SUMMARY
-        echo "| 代码质量检查 | ${{ needs.code-quality.result }} | SonarCloud/基本检查 |" >> $GITHUB_STEP_SUMMARY
+        echo "| 代码质量检查 | ${{ needs.code-quality.result }} | 构建和基本测试 |" >> $GITHUB_STEP_SUMMARY
         echo "| Windows环境测试 | ${{ needs.test-windows.result }} | 单元/集成/性能测试 |" >> $GITHUB_STEP_SUMMARY
         echo "| UI自动化测试 | ${{ needs.test-ui.result }} | 用户界面测试 |" >> $GITHUB_STEP_SUMMARY
         echo "| 安全扫描 | ${{ needs.security-scan.result }} | CodeQL安全分析 |" >> $GITHUB_STEP_SUMMARY
-        echo "| 许可证检查 | ${{ needs.license-check.result }} | 第三方库许可证 |" >> $GITHUB_STEP_SUMMARY
+        echo "| 许可证检查 | ${{ needs.license-check.result }} | 许可证合规性 |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         # 总体状态
         if [[ "${{ needs.code-quality.result }}" == "success" && "${{ needs.test-windows.result }}" == "success" ]]; then
           echo "### 🎉 测试结果: ✅ 通过" >> $GITHUB_STEP_SUMMARY
-          echo "核心测试均已通过，插件可以正常使用！" >> $GITHUB_STEP_SUMMARY
+          echo "核心测试已通过，插件可以正常构建和使用！" >> $GITHUB_STEP_SUMMARY
         else
           echo "### ⚠️ 测试结果: ❌ 失败" >> $GITHUB_STEP_SUMMARY
-          echo "部分测试未通过，请查看详细信息并修复问题。" >> $GITHUB_STEP_SUMMARY
+          echo "部分测试未通过，请查看详细日志修复问题。" >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "" >> $GITHUB_STEP_SUMMARY
