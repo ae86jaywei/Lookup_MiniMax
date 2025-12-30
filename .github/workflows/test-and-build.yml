@@ -486,12 +486,12 @@ jobs:
         $version = "${{ steps.version.outputs.version }}"
         $buildDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         $versionInfo = @"
-中望CAD动态块查寻插件 - 版本信息
-版本: $version
-构建日期: $buildDate
-构建环境: GitHub Actions
-.NET Framework: 4.8
-"@
+        中望CAD动态块查寻插件 - 版本信息
+        版本: $version
+        构建日期: $buildDate
+        构建环境: GitHub Actions
+        .NET Framework: 4.8
+        "@
         $versionInfo | Out-File -FilePath "release\版本信息.txt" -Encoding UTF8
         
         # 打包
