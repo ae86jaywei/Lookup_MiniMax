@@ -71,24 +71,23 @@ jobs:
           exit 1
         fi
         
+        # 修复：使用正确的SonarScanner语法
         dotnet sonarscanner begin \
-          /key:"${{ env.PROJECT_NAME }}" \
-              /organization:"ae86jaywei" \
-          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \       /d:sonar.host.url="https://sonarcloud.io" \
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
-          /d:sonar.coverage.exclusions="**/*Test*/**,**/Tests/**"
+          /k:"${{ env.PROJECT_NAME }}" \
+          /o:"ae86jaywei" \
+          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+          /d:sonar.host.url="https://sonarcloud.io"
 
     - name: 构建和测试（用于SonarCloud）
       if: env.SONARCLOUD_SKIP == 'false'
       run: |
         dotnet build ${{ env.SOLUTION_NAME }} --no-restore
         
+        # 简化测试命令，移除复杂参数
         dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj \
           --no-build \
           --verbosity normal \
-          --collect:"XPlat Code Coverage" \
-          --results-directory TestResults \
-          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+          --collect:"XPlat Code Coverage"
 
     - name: 结束SonarCloud分析
       if: env.SONARCLOUD_SKIP == 'false'
@@ -250,7 +249,6 @@ jobs:
           --logger "trx;LogFileName=performance-results.trx" `
           --results-directory TestResults
 
-    # 修复：更新到 v4
     - name: 上传测试结果
       uses: actions/upload-artifact@v4
       if: always()
@@ -345,7 +343,6 @@ jobs:
           $placeholder | Out-File -FilePath "UI/TestScreenshots/placeholder.txt" -Encoding UTF8
         }
 
-    # 修复：更新到 v4
     - name: 上传UI测试结果
       uses: actions/upload-artifact@v4
       if: always()
@@ -491,7 +488,6 @@ jobs:
         $version = "${{ steps.version.outputs.version }}"
         Compress-Archive -Path "release\*" -DestinationPath "ZWDynLookup-$version.zip" -Force
 
-    # 修复：更新到 v4
     - name: 上传发布包
       uses: actions/upload-artifact@v4
       with:
@@ -541,7 +537,6 @@ jobs:
     if: always()
     
     steps:
-    # 修复：更新到 v4
     - name: 获取测试结果
       uses: actions/download-artifact@v4
       
