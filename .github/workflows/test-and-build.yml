@@ -263,7 +263,7 @@ jobs:
           --logger trx
 
     - name: 上传UI测试结果
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@main
       if: always()
       with:
         name: ui-test-results
@@ -380,7 +380,7 @@ jobs:
         Compress-Archive -Path "release\*" -DestinationPath "ZWDynLookup-${{ steps.version.outputs.version }}.zip"
 
     - name: 上传发布包
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@main
       with:
         name: release-package-${{ steps.version.outputs.version }}
         path: ZWDynLookup-${{ steps.version.outputs.version }}.zip
@@ -429,7 +429,7 @@ jobs:
     
     steps:
     - name: 获取测试结果
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@main
       
     - name: 生成测试报告摘要
       run: |
