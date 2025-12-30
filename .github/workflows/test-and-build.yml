@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ main, develop ]
   schedule:
-    # 每天UTC 2:00运行 (北京时间10:00)
     - cron: '0 2 * * *'
 
 env:
@@ -17,21 +16,16 @@ env:
   TEST_PROJECT_NAME: 'ZWDynLookup.Tests'
   COVERAGE_THRESHOLD: 85
 
-# 添加必要的权限
 permissions:
   contents: read
   checks: write
   security-events: write
 
 jobs:
-  # 代码质量检查 - 修复版本
+  # 代码质量检查 - 简化版本
   code-quality:
     name: 代码质量检查
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: write
-      security-events: write
     steps:
     - name: 检出代码
       uses: actions/checkout@v4
@@ -48,32 +42,80 @@ jobs:
         dotnet restore ${{ env.SOLUTION_NAME }}
         dotnet restore ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj
 
+    - name: 检查SonarCloud配置
+      shell: bash
+      run: |
+        echo "检查SonarCloud配置..."
+        if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
+          echo "警告: SONAR_TOKEN未设置，跳过SonarCloud分析"
+          echo "SONARCLOUD_SKIP=true" >> $GITHUB_ENV
+        else
+          echo "SONAR_TOKEN已配置，继续执行SonarCloud分析"
+          echo "SONARCLOUD_SKIP=false" >> $GITHUB_ENV
+        fi
+
     - name: 安装SonarScanner
+      if: env.SONARCLOUD_SKIP == 'false'
       run: dotnet tool install --global dotnet-sonarscanner
 
     - name: SonarCloud分析
+      if: env.SONARCLOUD_SKIP == 'false'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      shell: bash
       run: |
-        dotnet sonarscanner begin \
-          /k:"${{ env.PROJECT_NAME }}" \
-          /o:"zhongwang-cad" \
-          /d:sonar.login=${{ secrets.SONAR_TOKEN }} \
-          /d:sonar.host.url="https://sonarcloud.io" \
-          /d:sonar.cs.vstest.reportsPaths="**/*.trx" \
-          /d:sonar.cs.opencover.reportsPaths="**/coverage/*.xml" \
-          /d:sonar.coverage.exclusions="**/TestResults/**,**/Tests/**"
+        echo "开始SonarCloud分析..."
+        if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
+          echo "错误: SONAR_TOKEN为空"
+          exit 1
+        fi
         
+        dotnet sonarscanner begin \
+          /key:"${{ env.PROJECT_NAME }}" \
+          /organization:"zhongwang-cad" \
+          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+          /d:sonar.host.url="https://sonarcloud.io" \
+          /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
+          /d:sonar.coverage.exclusions="**/*Test*/**,**/Tests/**"
+
+    - name: 构建和测试（用于SonarCloud）
+      if: env.SONARCLOUD_SKIP == 'false'
+      run: |
         dotnet build ${{ env.SOLUTION_NAME }} --no-restore
         
         dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj \
           --no-build \
           --verbosity normal \
           --collect:"XPlat Code Coverage" \
-          --settings coverlet.runsettings
+          --results-directory TestResults \
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+
+    - name: 结束SonarCloud分析
+      if: env.SONARCLOUD_SKIP == 'false'
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      shell: bash
+      run: |
+        echo "结束SonarCloud分析..."
+        dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+    - name: 基本代码质量检查（无SonarCloud）
+      if: env.SONARCLOUD_SKIP == 'true'
+      shell: bash
+      run: |
+        echo "执行基本代码质量检查..."
+        dotnet build ${{ env.SOLUTION_NAME }} --no-restore
         
-        dotnet sonarscanner end /d:sonar.login=${{ secrets.SONAR_TOKEN }}
+        dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj \
+          --no-build \
+          --verbosity normal \
+          --logger "console;verbosity=normal"
+        
+        echo "=== 代码质量检查 ==="
+        echo "1. 构建: ✅ 成功"
+        echo "2. 测试: ✅ 运行完成"
+        echo "3. SonarCloud: ⚠️ 未配置"
 
   # Windows环境测试
   test-windows:
@@ -118,14 +160,12 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-nuget-
 
-    # 构建项目
     - name: 构建项目 (${{ matrix.configuration }})
       shell: pwsh
       run: |
         Write-Host "构建项目 - ${{ matrix.configuration }} 模式" -ForegroundColor Green
         msbuild ${{ env.SOLUTION_NAME }} /p:Configuration=${{ matrix.configuration }} /p:Platform="Any CPU" /p:RestorePackages=true /v:minimal
         
-        # 验证构建输出
         if (Test-Path "bin\${{ matrix.configuration }}\net48\ZWDynLookup.dll") {
           Write-Host "主项目构建成功" -ForegroundColor Green
         } else {
@@ -133,16 +173,13 @@ jobs:
           exit 1
         }
 
-    # 运行单元测试
     - name: 运行单元测试
       shell: pwsh
       run: |
         Write-Host "开始单元测试..." -ForegroundColor Green
         
-        # 创建测试结果目录
         New-Item -ItemType Directory -Path "TestResults" -Force
         
-        # 运行所有测试
         dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
           --configuration ${{ matrix.configuration }} `
           --framework ${{ env.DOTNET_FRAMEWORK_VERSION }} `
@@ -153,26 +190,22 @@ jobs:
           --collect:"XPlat Code Coverage" `
           -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
-    # 代码覆盖率分析
     - name: 代码覆盖率分析
       shell: pwsh
       run: |
         Write-Host "分析代码覆盖率..." -ForegroundColor Green
         
-        # 生成覆盖率报告
         $coverageFiles = Get-ChildItem -Path "TestResults" -Filter "*.cobertura.xml" -Recurse
         if ($coverageFiles) {
           Write-Host "找到覆盖率文件: $($coverageFiles.Count)" -ForegroundColor Yellow
           foreach ($file in $coverageFiles) {
             Write-Host "处理文件: $($file.FullName)" -ForegroundColor Cyan
             
-            # 计算覆盖率
             $coverageContent = Get-Content $file.FullName -Raw
             if ($coverageContent -match 'line-rate="([0-9.]+)"') {
               $coveragePercent = [math]::Round([double]$Matches[1] * 100, 2)
               Write-Host "代码覆盖率: $coveragePercent%" -ForegroundColor Green
               
-              # 检查是否达到阈值
               if ($coveragePercent -lt ${{ env.COVERAGE_THRESHOLD }}) {
                 Write-Host "警告: 代码覆盖率低于阈值 ${{ env.COVERAGE_THRESHOLD }}%" -ForegroundColor Red
               }
@@ -182,13 +215,11 @@ jobs:
           Write-Host "警告: 未找到覆盖率文件" -ForegroundColor Yellow
         }
 
-    # 集成测试
     - name: 运行集成测试
       shell: pwsh
       run: |
         Write-Host "开始集成测试..." -ForegroundColor Green
         
-        # 模拟中望CAD环境进行集成测试
         $env:ZHONGCAD_SIMULATION = "true"
         $env:INTEGRATION_TEST_MODE = "true"
         $env:ZWCAD_API_MODE = "true"
@@ -202,14 +233,12 @@ jobs:
           --logger "trx;LogFileName=integration-results.trx" `
           --results-directory TestResults
 
-    # 性能测试
     - name: 运行性能测试
       shell: pwsh
       continue-on-error: true
       run: |
         Write-Host "开始性能测试..." -ForegroundColor Green
         
-        # 设置性能测试环境
         $env:PERFORMANCE_TEST_MODE = "true"
         $env:BENCHMARK_CONFIG_PATH = "${{ env.TEST_PROJECT_NAME }}/Performance/BenchmarkConfig.json"
         
@@ -222,9 +251,9 @@ jobs:
           --logger "trx;LogFileName=performance-results.trx" `
           --results-directory TestResults
 
-    # 性能和覆盖率报告
+    # 修复：更新到 v4
     - name: 上传测试结果
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results-windows-${{ matrix.configuration }}
@@ -240,7 +269,7 @@ jobs:
         path: TestResults/*.trx
         reporter: dotnet-trx
 
-  # UI测试 (需要中望CAD环境) - 添加完整的作业定义
+  # UI测试
   test-ui:
     name: UI自动化测试
     runs-on: windows-latest
@@ -258,13 +287,11 @@ jobs:
     - name: 模拟中望CAD环境
       shell: pwsh
       run: |
-        # 设置中望CAD模拟环境变量
         Write-Host "设置中望CAD模拟环境..." -ForegroundColor Yellow
         $env:ZHONGCAD_VERSION = "2024"
         $env:ZHONGCAD_PATH = "C:\Program Files\ZWSOFT\ZWCAD 2024"
         $env:ZWCAD_API_MODE = "true"
         
-        # 创建模拟目录结构
         New-Item -ItemType Directory -Path "ZWCAD_Mock" -Force
         Write-Host "中望CAD模拟环境已设置" -ForegroundColor Green
 
@@ -285,10 +312,8 @@ jobs:
       run: |
         Write-Host "开始UI自动化测试..." -ForegroundColor Green
         
-        # 创建测试结果目录
         New-Item -ItemType Directory -Path "UITestResults" -Force
         
-        # 设置中望CAD UI测试环境变量
         $env:UI_TEST_MODE = "simulation"
         $env:ZWCAD_AUTOMATION = "true"
         $env:HEADLESS_MODE = "true"
@@ -296,7 +321,6 @@ jobs:
         
         Write-Host "UI测试环境变量已设置" -ForegroundColor Yellow
         
-        # 运行UI测试
         dotnet test ${{ env.TEST_PROJECT_NAME }}/${{ env.TEST_PROJECT_NAME }}.csproj `
           --configuration Release `
           --framework ${{ env.DOTNET_FRAMEWORK_VERSION }} `
@@ -314,18 +338,17 @@ jobs:
       run: |
         Write-Host "收集UI测试截图..." -ForegroundColor Green
         
-        # 创建截图目录
         New-Item -ItemType Directory -Path "UI/TestScreenshots" -Force
         
-        # 如果没有截图，创建一个空的占位符
         if (-not (Test-Path "UI/TestScreenshots/*.png")) {
           Write-Host "未找到截图，创建占位符文件" -ForegroundColor Yellow
           $placeholder = "没有UI测试截图生成"
           $placeholder | Out-File -FilePath "UI/TestScreenshots/placeholder.txt" -Encoding UTF8
         }
 
+    # 修复：更新到 v4
     - name: 上传UI测试结果
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: ui-test-results
@@ -334,7 +357,7 @@ jobs:
           UI/TestScreenshots/
         retention-days: 30
 
-  # 安全扫描 - 修复 CodeQL 版本
+  # 安全扫描
   security-scan:
     name: 安全扫描
     runs-on: ubuntu-latest
@@ -389,7 +412,6 @@ jobs:
       run: |
         dotnet restore ${{ env.SOLUTION_NAME }}
         
-        # 检查第三方库许可证
         echo "=== 项目依赖包 ===" | tee -a licenses.txt
         dotnet list package --include-transitive | tee -a licenses.txt
         
@@ -401,7 +423,7 @@ jobs:
         
         echo "许可证扫描完成" >> $GITHUB_STEP_SUMMARY
 
-  # 发布准备 - 修复 PowerShell 语法问题
+  # 发布准备
   prepare-release:
     name: 发布准备
     runs-on: windows-latest
@@ -470,8 +492,9 @@ jobs:
         $version = "${{ steps.version.outputs.version }}"
         Compress-Archive -Path "release\*" -DestinationPath "ZWDynLookup-$version.zip" -Force
 
+    # 修复：更新到 v4
     - name: 上传发布包
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: release-package-${{ steps.version.outputs.version }}
         path: ZWDynLookup-${{ steps.version.outputs.version }}.zip
@@ -519,6 +542,10 @@ jobs:
     if: always()
     
     steps:
+    # 修复：更新到 v4
+    - name: 获取测试结果
+      uses: actions/download-artifact@v4
+      
     - name: 生成测试报告摘要
       run: |
         echo "## 📊 中望CAD动态块查寻插件 - 测试报告" >> $GITHUB_STEP_SUMMARY
