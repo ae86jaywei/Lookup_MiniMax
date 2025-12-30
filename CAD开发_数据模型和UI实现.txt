@@ -1,0 +1,1611 @@
+中望CAD动态块查寻插件 - 数据模型和UI界面完整实现
+===========================================
+
+💡 这份文件包含所有重要的数据模型类和UI界面类的完整实现
+
+📁 1. LookupTableData.cs - 查寻表数据模型
+=========================================
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.Serialization;
+using System.Xml.Serialization;
+using Newtonsoft.Json;
+
+namespace ZWDynLookup.Models
+{
+    /// <summary>
+    /// 查寻表数据模型
+    /// 用于存储和管理查寻表的完整数据
+    /// </summary>
+    [DataContract]
+    [Serializable]
+    public class LookupTableData : INotifyPropertyChanged
+    {
+        private string _tableName;
+        private string _description;
+        private DateTime _creationTime;
+        private DateTime _lastModified;
+        private List<LookupTableRow> _rows;
+        private Dictionary<string, ParameterProperty> _inputProperties;
+        private Dictionary<string, ParameterProperty> _lookupProperties;
+        private bool _isActive;
+        private string _version;
+        private Dictionary<string, object> _metadata;
+
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        public LookupTableData()
+        {
+            _rows = new List<LookupTableRow>();
+            _inputProperties = new Dictionary<string, ParameterProperty>();
+            _lookupProperties = new Dictionary<string, ParameterProperty>();
+            _metadata = new Dictionary<string, object>();
+            _creationTime = DateTime.Now;
+            _lastModified = DateTime.Now;
+            _version = "1.0";
+            _isActive = true;
+        }
+
+        /// <summary>
+        /// 查寻表名称
+        /// </summary>
+        [DataMember]
+        public string TableName
+        {
+            get { return _tableName; }
+            set
+            {
+                if (_tableName != value)
+                {
+                    _tableName = value;
+                    OnPropertyChanged(nameof(TableName));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 查寻表描述
+        /// </summary>
+        [DataMember]
+        public string Description
+        {
+            get { return _description; }
+            set
+            {
+                if (_description != value)
+                {
+                    _description = value;
+                    OnPropertyChanged(nameof(Description));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 创建时间
+        /// </summary>
+        [DataMember]
+        public DateTime CreationTime
+        {
+            get { return _creationTime; }
+            set
+            {
+                if (_creationTime != value)
+                {
+                    _creationTime = value;
+                    OnPropertyChanged(nameof(CreationTime));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 最后修改时间
+        /// </summary>
+        [DataMember]
+        public DateTime LastModified
+        {
+            get { return _lastModified; }
+            set
+            {
+                if (_lastModified != value)
+                {
+                    _lastModified = value;
+                    OnPropertyChanged(nameof(LastModified));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 查寻表行数据
+        /// </summary>
+        [DataMember]
+        public List<LookupTableRow> Rows
+        {
+            get { return _rows; }
+            set
+            {
+                if (_rows != value)
+                {
+                    _rows = value;
+                    OnPropertyChanged(nameof(Rows));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 输入参数特性
+        /// </summary>
+        [DataMember]
+        public Dictionary<string, ParameterProperty> InputProperties
+        {
+            get { return _inputProperties; }
+            set
+            {
+                if (_inputProperties != value)
+                {
+                    _inputProperties = value;
+                    OnPropertyChanged(nameof(InputProperties));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 查寻参数特性
+        /// </summary>
+        [DataMember]
+        public Dictionary<string, ParameterProperty> LookupProperties
+        {
+            get { return _lookupProperties; }
+            set
+            {
+                if (_lookupProperties != value)
+                {
+                    _lookupProperties = value;
+                    OnPropertyChanged(nameof(LookupProperties));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 是否激活
+        /// </summary>
+        [DataMember]
+        public bool IsActive
+        {
+            get { return _isActive; }
+            set
+            {
+                if (_isActive != value)
+                {
+                    _isActive = value;
+                    OnPropertyChanged(nameof(IsActive));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 版本号
+        /// </summary>
+        [DataMember]
+        public string Version
+        {
+            get { return _version; }
+            set
+            {
+                if (_version != value)
+                {
+                    _version = value;
+                    OnPropertyChanged(nameof(Version));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 元数据
+        /// </summary>
+        [DataMember]
+        public Dictionary<string, object> Metadata
+        {
+            get { return _metadata; }
+            set
+            {
+                if (_metadata != value)
+                {
+                    _metadata = value;
+                    OnPropertyChanged(nameof(Metadata));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 行数
+        /// </summary>
+        [JsonIgnore]
+        public int RowCount => _rows?.Count ?? 0;
+
+        /// <summary>
+        /// 输入特性数
+        /// </summary>
+        [JsonIgnore]
+        public int InputPropertyCount => _inputProperties?.Count ?? 0;
+
+        /// <summary>
+        /// 查寻特性数
+        /// </summary>
+        [JsonIgnore]
+        public int LookupPropertyCount => _lookupProperties?.Count ?? 0;
+
+        /// <summary>
+        /// 添加行
+        /// </summary>
+        public void AddRow(LookupTableRow row)
+        {
+            if (row != null)
+            {
+                _rows.Add(row);
+                _lastModified = DateTime.Now;
+                OnPropertyChanged(nameof(Rows));
+            }
+        }
+
+        /// <summary>
+        /// 移除行
+        /// </summary>
+        public bool RemoveRow(LookupTableRow row)
+        {
+            if (row != null && _rows.Remove(row))
+            {
+                _lastModified = DateTime.Now;
+                OnPropertyChanged(nameof(Rows));
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 移除指定索引的行
+        /// </summary>
+        public bool RemoveRowAt(int index)
+        {
+            if (index >= 0 && index < _rows.Count)
+            {
+                _rows.RemoveAt(index);
+                _lastModified = DateTime.Now;
+                OnPropertyChanged(nameof(Rows));
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 添加输入特性
+        /// </summary>
+        public void AddInputProperty(string key, ParameterProperty property)
+        {
+            if (!string.IsNullOrEmpty(key) && property != null)
+            {
+                _inputProperties[key] = property;
+                _lastModified = DateTime.Now;
+                OnPropertyChanged(nameof(InputProperties));
+            }
+        }
+
+        /// <summary>
+        /// 添加查寻特性
+        /// </summary>
+        public void AddLookupProperty(string key, ParameterProperty property)
+        {
+            if (!string.IsNullOrEmpty(key) && property != null)
+            {
+                _lookupProperties[key] = property;
+                _lastModified = DateTime.Now;
+                OnPropertyChanged(nameof(LookupProperties));
+            }
+        }
+
+        /// <summary>
+        /// 清除所有行
+        /// </summary>
+        public void ClearRows()
+        {
+            _rows.Clear();
+            _lastModified = DateTime.Now;
+            OnPropertyChanged(nameof(Rows));
+        }
+
+        /// <summary>
+        /// 验证查寻表数据
+        /// </summary>
+        public bool Validate(out List<string> errors)
+        {
+            errors = new List<string>();
+
+            if (string.IsNullOrEmpty(_tableName))
+            {
+                errors.Add("查寻表名称不能为空");
+            }
+
+            if (_rows.Count == 0)
+            {
+                errors.Add("查寻表必须包含至少一行数据");
+            }
+
+            if (_inputProperties.Count == 0)
+            {
+                errors.Add("查寻表必须包含至少一个输入特性");
+            }
+
+            if (_lookupProperties.Count == 0)
+            {
+                errors.Add("查寻表必须包含至少一个查寻特性");
+            }
+
+            // 验证行数据
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                var rowErrors = _rows[i].Validate();
+                if (rowErrors.Count > 0)
+                {
+                    errors.Add($"第{i + 1}行: {string.Join(", ", rowErrors)}");
+                }
+            }
+
+            return errors.Count == 0;
+        }
+
+        /// <summary>
+        /// 查找匹配的行
+        /// </summary>
+        public List<LookupTableRow> FindMatchingRows(Dictionary<string, object> inputValues)
+        {
+            var matches = new List<LookupTableRow>();
+
+            foreach (var row in _rows)
+            {
+                if (row.Matches(inputValues))
+                {
+                    matches.Add(row);
+                }
+            }
+
+            return matches;
+        }
+
+        /// <summary>
+        /// 查找第一个匹配的行
+        /// </summary>
+        public LookupTableRow FindFirstMatchingRow(Dictionary<string, object> inputValues)
+        {
+            foreach (var row in _rows)
+            {
+                if (row.Matches(inputValues))
+                {
+                    return row;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 获取所有输入特性键
+        /// </summary>
+        public string[] GetInputPropertyKeys()
+        {
+            return _inputProperties.Keys.ToArray();
+        }
+
+        /// <summary>
+        /// 获取所有查寻特性键
+        /// </summary>
+        public string[] GetLookupPropertyKeys()
+        {
+            return _lookupProperties.Keys.ToArray();
+        }
+
+        /// <summary>
+        /// 复制查寻表
+        /// </summary>
+        public LookupTableData Clone()
+        {
+            var clone = new LookupTableData
+            {
+                TableName = _tableName,
+                Description = _description,
+                CreationTime = _creationTime,
+                LastModified = DateTime.Now,
+                IsActive = _isActive,
+                Version = _version,
+                Rows = new List<LookupTableRow>(),
+                InputProperties = new Dictionary<string, ParameterProperty>(),
+                LookupProperties = new Dictionary<string, ParameterProperty>(),
+                Metadata = new Dictionary<string, object>(_metadata)
+            };
+
+            // 复制行数据
+            foreach (var row in _rows)
+            {
+                clone.Rows.Add(row.Clone());
+            }
+
+            // 复制特性
+            foreach (var kvp in _inputProperties)
+            {
+                clone.InputProperties[kvp.Key] = kvp.Value.Clone();
+            }
+
+            foreach (var kvp in _lookupProperties)
+            {
+                clone.LookupProperties[kvp.Key] = kvp.Value.Clone();
+            }
+
+            return clone;
+        }
+
+        /// <summary>
+        /// 属性Changed事件
+        /// </summary>
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        /// <summary>
+        /// 触发属性Changed事件
+        /// </summary>
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        /// <summary>
+        /// ToString方法
+        /// </summary>
+        public override string ToString()
+        {
+            return $"LookupTableData: {TableName} (Rows: {RowCount}, InputProps: {InputPropertyCount}, LookupProps: {LookupPropertyCount})";
+        }
+    }
+
+    /// <summary>
+    /// 查寻表行数据
+    /// </summary>
+    [DataContract]
+    [Serializable]
+    public class LookupTableRow : INotifyPropertyChanged
+    {
+        private Dictionary<string, object> _inputValues;
+        private Dictionary<string, object> _outputValues;
+        private string _description;
+        private bool _isEnabled;
+        private DateTime _creationTime;
+
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        public LookupTableRow()
+        {
+            _inputValues = new Dictionary<string, object>();
+            _outputValues = new Dictionary<string, object>();
+            _description = "";
+            _isEnabled = true;
+            _creationTime = DateTime.Now;
+        }
+
+        /// <summary>
+        /// 输入值
+        /// </summary>
+        [DataMember]
+        public Dictionary<string, object> InputValues
+        {
+            get { return _inputValues; }
+            set
+            {
+                if (_inputValues != value)
+                {
+                    _inputValues = value;
+                    OnPropertyChanged(nameof(InputValues));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 输出值
+        /// </summary>
+        [DataMember]
+        public Dictionary<string, object> OutputValues
+        {
+            get { return _outputValues; }
+            set
+            {
+                if (_outputValues != value)
+                {
+                    _outputValues = value;
+                    OnPropertyChanged(nameof(OutputValues));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 行描述
+        /// </summary>
+        [DataMember]
+        public string Description
+        {
+            get { return _description; }
+            set
+            {
+                if (_description != value)
+                {
+                    _description = value;
+                    OnPropertyChanged(nameof(Description));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 是否启用
+        /// </summary>
+        [DataMember]
+        public bool IsEnabled
+        {
+            get { return _isEnabled; }
+            set
+            {
+                if (_isEnabled != value)
+                {
+                    _isEnabled = value;
+                    OnPropertyChanged(nameof(IsEnabled));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 创建时间
+        /// </summary>
+        [DataMember]
+        public DateTime CreationTime
+        {
+            get { return _creationTime; }
+            set
+            {
+                if (_creationTime != value)
+                {
+                    _creationTime = value;
+                    OnPropertyChanged(nameof(CreationTime));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 设置输入值
+        /// </summary>
+        public void SetInputValue(string key, object value)
+        {
+            if (!string.IsNullOrEmpty(key))
+            {
+                _inputValues[key] = value;
+                OnPropertyChanged(nameof(InputValues));
+            }
+        }
+
+        /// <summary>
+        /// 获取输入值
+        /// </summary>
+        public object GetInputValue(string key)
+        {
+            if (_inputValues.ContainsKey(key))
+            {
+                return _inputValues[key];
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 设置输出值
+        /// </summary>
+        public void SetOutputValue(string key, object value)
+        {
+            if (!string.IsNullOrEmpty(key))
+            {
+                _outputValues[key] = value;
+                OnPropertyChanged(nameof(OutputValues));
+            }
+        }
+
+        /// <summary>
+        /// 获取输出值
+        /// </summary>
+        public object GetOutputValue(string key)
+        {
+            if (_outputValues.ContainsKey(key))
+            {
+                return _outputValues[key];
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 检查是否匹配输入值
+        /// </summary>
+        public bool Matches(Dictionary<string, object> inputValues)
+        {
+            if (inputValues == null || inputValues.Count == 0)
+            {
+                return true; // 空输入匹配所有行
+            }
+
+            foreach (var kvp in inputValues)
+            {
+                if (!_inputValues.ContainsKey(kvp.Key))
+                {
+                    return false; // 输入键不存在
+                }
+
+                var inputValue = _inputValues[kvp.Key];
+                var matchValue = kvp.Value;
+
+                if (!ValuesMatch(inputValue, matchValue))
+                {
+                    return false; // 值不匹配
+                }
+            }
+
+            return true; // 所有输入值都匹配
+        }
+
+        /// <summary>
+        /// 比较两个值是否匹配
+        /// </summary>
+        private bool ValuesMatch(object value1, object value2)
+        {
+            if (value1 == null && value2 == null)
+                return true;
+
+            if (value1 == null || value2 == null)
+                return false;
+
+            // 类型转换比较
+            try
+            {
+                if (value1.GetType() != value2.GetType())
+                {
+                    // 尝试转换为字符串比较
+                    return value1.ToString().Equals(value2.ToString(), StringComparison.OrdinalIgnoreCase);
+                }
+
+                return value1.Equals(value2);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 验证行数据
+        /// </summary>
+        public List<string> Validate()
+        {
+            var errors = new List<string>();
+
+            if (_inputValues.Count == 0)
+            {
+                errors.Add("行必须包含至少一个输入值");
+            }
+
+            if (_outputValues.Count == 0)
+            {
+                errors.Add("行必须包含至少一个输出值");
+            }
+
+            return errors;
+        }
+
+        /// <summary>
+        /// 复制行
+        /// </summary>
+        public LookupTableRow Clone()
+        {
+            var clone = new LookupTableRow
+            {
+                Description = _description,
+                IsEnabled = _isEnabled,
+                CreationTime = DateTime.Now,
+                InputValues = new Dictionary<string, object>(_inputValues),
+                OutputValues = new Dictionary<string, object>(_outputValues)
+            };
+
+            return clone;
+        }
+
+        /// <summary>
+        /// 属性Changed事件
+        /// </summary>
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        /// <summary>
+        /// 触发属性Changed事件
+        /// </summary>
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        /// <summary>
+        /// ToString方法
+        /// </summary>
+        public override string ToString()
+        {
+            return $"LookupTableRow: Input({_inputValues.Count}) Output({_outputValues.Count})";
+        }
+    }
+}
+
+===========================================
+📁 2. ParameterProperty.cs - 参数特性模型
+=========================================
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.Serialization;
+using System.Xml.Serialization;
+using Newtonsoft.Json;
+
+namespace ZWDynLookup.Models
+{
+    /// <summary>
+    /// 参数特性模型
+    /// 用于定义和管理参数的各种特性
+    /// </summary>
+    [DataContract]
+    [Serializable]
+    public class ParameterProperty : INotifyPropertyChanged
+    {
+        private string _name;
+        private string _displayName;
+        private string _description;
+        private ParameterType _type;
+        private object _defaultValue;
+        private object _currentValue;
+        private List<object> _allowedValues;
+        private bool _isReadOnly;
+        private bool _isVisible;
+        private string _category;
+        private double? _minValue;
+        private double? _maxValue;
+        private int _precision;
+        private string _formatString;
+        private string _unit;
+        private bool _isRequired;
+        private string _validationRule;
+        private Dictionary<string, object> _customAttributes;
+        private DateTime _creationTime;
+        private DateTime _lastModified;
+
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        public ParameterProperty()
+        {
+            _allowedValues = new List<object>();
+            _customAttributes = new Dictionary<string, object>();
+            _creationTime = DateTime.Now;
+            _lastModified = DateTime.Now;
+            _isVisible = true;
+            _isReadOnly = false;
+            _isRequired = false;
+            _precision = 2;
+            _formatString = "";
+        }
+
+        /// <summary>
+        /// 构造函数 - 指定名称和类型
+        /// </summary>
+        public ParameterProperty(string name, ParameterType type) : this()
+        {
+            _name = name;
+            _displayName = name;
+            _type = type;
+            _currentValue = GetDefaultValueForType(type);
+        }
+
+        /// <summary>
+        /// 特性名称
+        /// </summary>
+        [DataMember]
+        public string Name
+        {
+            get { return _name; }
+            set
+            {
+                if (_name != value)
+                {
+                    _name = value;
+                    OnPropertyChanged(nameof(Name));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 显示名称
+        /// </summary>
+        [DataMember]
+        public string DisplayName
+        {
+            get { return _displayName; }
+            set
+            {
+                if (_displayName != value)
+                {
+                    _displayName = value;
+                    OnPropertyChanged(nameof(DisplayName));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 描述
+        /// </summary>
+        [DataMember]
+        public string Description
+        {
+            get { return _description; }
+            set
+            {
+                if (_description != value)
+                {
+                    _description = value;
+                    OnPropertyChanged(nameof(Description));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 参数类型
+        /// </summary>
+        [DataMember]
+        public ParameterType Type
+        {
+            get { return _type; }
+            set
+            {
+                if (_type != value)
+                {
+                    _type = value;
+                    OnPropertyChanged(nameof(Type));
+                    OnPropertyChanged(nameof(TypeName));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 类型名称
+        /// </summary>
+        [JsonIgnore]
+        public string TypeName => GetTypeName(_type);
+
+        /// <summary>
+        /// 默认值
+        /// </summary>
+        [DataMember]
+        public object DefaultValue
+        {
+            get { return _defaultValue; }
+            set
+            {
+                if (!Equals(_defaultValue, value))
+                {
+                    _defaultValue = value;
+                    OnPropertyChanged(nameof(DefaultValue));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 当前值
+        /// </summary>
+        [DataMember]
+        public object CurrentValue
+        {
+            get { return _currentValue; }
+            set
+            {
+                if (!Equals(_currentValue, value))
+                {
+                    _currentValue = value;
+                    OnPropertyChanged(nameof(CurrentValue));
+                    OnPropertyChanged(nameof(FormattedValue));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 格式化后的值
+        /// </summary>
+        [JsonIgnore]
+        public string FormattedValue
+        {
+            get
+            {
+                if (_currentValue == null)
+                    return "";
+
+                switch (_type)
+                {
+                    case ParameterType.Decimal:
+                        return FormatDecimal(_currentValue);
+                    case ParameterType.Integer:
+                        return FormatInteger(_currentValue);
+                    case ParameterType.Double:
+                        return FormatDouble(_currentValue);
+                    case ParameterType.Boolean:
+                        return FormatBoolean(_currentValue);
+                    case ParameterType.DateTime:
+                        return FormatDateTime(_currentValue);
+                    default:
+                        return _currentValue.ToString();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 允许的值列表
+        /// </summary>
+        [DataMember]
+        public List<object> AllowedValues
+        {
+            get { return _allowedValues; }
+            set
+            {
+                if (_allowedValues != value)
+                {
+                    _allowedValues = value;
+                    OnPropertyChanged(nameof(AllowedValues));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 是否只读
+        /// </summary>
+        [DataMember]
+        public bool IsReadOnly
+        {
+            get { return _isReadOnly; }
+            set
+            {
+                if (_isReadOnly != value)
+                {
+                    _isReadOnly = value;
+                    OnPropertyChanged(nameof(IsReadOnly));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 是否可见
+        /// </summary>
+        [DataMember]
+        public bool IsVisible
+        {
+            get { return _isVisible; }
+            set
+            {
+                if (_isVisible != value)
+                {
+                    _isVisible = value;
+                    OnPropertyChanged(nameof(IsVisible));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 类别
+        /// </summary>
+        [DataMember]
+        public string Category
+        {
+            get { return _category; }
+            set
+            {
+                if (_category != value)
+                {
+                    _category = value;
+                    OnPropertyChanged(nameof(Category));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 最小值
+        /// </summary>
+        [DataMember]
+        public double? MinValue
+        {
+            get { return _minValue; }
+            set
+            {
+                if (_minValue != value)
+                {
+                    _minValue = value;
+                    OnPropertyChanged(nameof(MinValue));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 最大值
+        /// </summary>
+        [DataMember]
+        public double? MaxValue
+        {
+            get { return _maxValue; }
+            set
+            {
+                if (_maxValue != value)
+                {
+                    _maxValue = value;
+                    OnPropertyChanged(nameof(MaxValue));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 精度
+        /// </summary>
+        [DataMember]
+        public int Precision
+        {
+            get { return _precision; }
+            set
+            {
+                if (_precision != value)
+                {
+                    _precision = value;
+                    OnPropertyChanged(nameof(Precision));
+                    OnPropertyChanged(nameof(FormattedValue));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 格式字符串
+        /// </summary>
+        [DataMember]
+        public string FormatString
+        {
+            get { return _formatString; }
+            set
+            {
+                if (_formatString != value)
+                {
+                    _formatString = value;
+                    OnPropertyChanged(nameof(FormatString));
+                    OnPropertyChanged(nameof(FormattedValue));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 单位
+        /// </summary>
+        [DataMember]
+        public string Unit
+        {
+            get { return _unit; }
+            set
+            {
+                if (_unit != value)
+                {
+                    _unit = value;
+                    OnPropertyChanged(nameof(Unit));
+                    OnPropertyChanged(nameof(FormattedValue));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 是否必需
+        /// </summary>
+        [DataMember]
+        public bool IsRequired
+        {
+            get { return _isRequired; }
+            set
+            {
+                if (_isRequired != value)
+                {
+                    _isRequired = value;
+                    OnPropertyChanged(nameof(IsRequired));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 验证规则
+        /// </summary>
+        [DataMember]
+        public string ValidationRule
+        {
+            get { return _validationRule; }
+            set
+            {
+                if (_validationRule != value)
+                {
+                    _validationRule = value;
+                    OnPropertyChanged(nameof(ValidationRule));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 自定义属性
+        /// </summary>
+        [DataMember]
+        public Dictionary<string, object> CustomAttributes
+        {
+            get { return _customAttributes; }
+            set
+            {
+                if (_customAttributes != value)
+                {
+                    _customAttributes = value;
+                    OnPropertyChanged(nameof(CustomAttributes));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 创建时间
+        /// </summary>
+        [DataMember]
+        public DateTime CreationTime
+        {
+            get { return _creationTime; }
+            set
+            {
+                if (_creationTime != value)
+                {
+                    _creationTime = value;
+                    OnPropertyChanged(nameof(CreationTime));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 最后修改时间
+        /// </summary>
+        [DataMember]
+        public DateTime LastModified
+        {
+            get { return _lastModified; }
+            set
+            {
+                if (_lastModified != value)
+                {
+                    _lastModified = value;
+                    OnPropertyChanged(nameof(LastModified));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 验证值
+        /// </summary>
+        public bool ValidateValue(object value, out List<string> errors)
+        {
+            errors = new List<string>();
+
+            if (value == null)
+            {
+                if (_isRequired)
+                {
+                    errors.Add("此参数是必需的，不能为空");
+                }
+                return errors.Count == 0;
+            }
+
+            // 类型验证
+            if (!IsCorrectType(value))
+            {
+                errors.Add($"值类型不匹配，期望: {TypeName}");
+            }
+
+            // 数值范围验证
+            if (_type == ParameterType.Decimal || _type == ParameterType.Double || _type == ParameterType.Integer)
+            {
+                double numValue;
+                if (double.TryParse(value.ToString(), out numValue))
+                {
+                    if (_minValue.HasValue && numValue < _minValue.Value)
+                    {
+                        errors.Add($"值不能小于 {_minValue.Value}");
+                    }
+                    if (_maxValue.HasValue && numValue > _maxValue.Value)
+                    {
+                        errors.Add($"值不能大于 {_maxValue.Value}");
+                    }
+                }
+            }
+
+            // 允许值验证
+            if (_allowedValues.Count > 0)
+            {
+                bool isAllowed = false;
+                foreach (var allowedValue in _allowedValues)
+                {
+                    if (ValuesEqual(value, allowedValue))
+                    {
+                        isAllowed = true;
+                        break;
+                    }
+                }
+                if (!isAllowed)
+                {
+                    errors.Add($"值必须在允许的列表中");
+                }
+            }
+
+            // 自定义验证规则
+            if (!string.IsNullOrEmpty(_validationRule))
+            {
+                var customErrors = ApplyCustomValidation(value);
+                errors.AddRange(customErrors);
+            }
+
+            return errors.Count == 0;
+        }
+
+        /// <summary>
+        /// 检查值类型是否正确
+        /// </summary>
+        private bool IsCorrectType(object value)
+        {
+            if (value == null) return true;
+
+            switch (_type)
+            {
+                case ParameterType.String:
+                    return value is string;
+                case ParameterType.Integer:
+                    return value is int || value is long;
+                case ParameterType.Double:
+                    return value is double || value is float || value is int || value is long;
+                case ParameterType.Decimal:
+                    return value is decimal || value is double || value is float || value is int || value is long;
+                case ParameterType.Boolean:
+                    return value is bool;
+                case ParameterType.DateTime:
+                    return value is DateTime || value is string;
+                case ParameterType.Color:
+                    return value is string || value is int;
+                case ParameterType.Point:
+                    return value is string; // 简化处理
+                default:
+                    return true;
+            }
+        }
+
+        /// <summary>
+        /// 比较两个值是否相等
+        /// </summary>
+        private bool ValuesEqual(object value1, object value2)
+        {
+            if (value1 == null && value2 == null) return true;
+            if (value1 == null || value2 == null) return false;
+
+            // 尝试类型转换比较
+            try
+            {
+                if (value1.GetType() != value2.GetType())
+                {
+                    return value1.ToString().Equals(value2.ToString(), StringComparison.OrdinalIgnoreCase);
+                }
+                return value1.Equals(value2);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 应用自定义验证规则
+        /// </summary>
+        private List<string> ApplyCustomValidation(object value)
+        {
+            var errors = new List<string>();
+            
+            // 这里可以实现自定义验证逻辑
+            // 例如：正则表达式验证、范围验证等
+            
+            return errors;
+        }
+
+        /// <summary>
+        /// 格式化十进制数
+        /// </summary>
+        private string FormatDecimal(object value)
+        {
+            try
+            {
+                decimal decValue = Convert.ToDecimal(value);
+                if (!string.IsNullOrEmpty(_formatString))
+                {
+                    return decValue.ToString(_formatString);
+                }
+                return decValue.ToString($"F{_precision}") + (string.IsNullOrEmpty(_unit) ? "" : $" {_unit}");
+            }
+            catch
+            {
+                return value.ToString();
+            }
+        }
+
+        /// <summary>
+        /// 格式化整数
+        /// </summary>
+        private string FormatInteger(object value)
+        {
+            try
+            {
+                int intValue = Convert.ToInt32(value);
+                return intValue.ToString() + (string.IsNullOrEmpty(_unit) ? "" : $" {_unit}");
+            }
+            catch
+            {
+                return value.ToString();
+            }
+        }
+
+        /// <summary>
+        /// 格式化浮点数
+        /// </summary>
+        private string FormatDouble(object value)
+        {
+            try
+            {
+                double dblValue = Convert.ToDouble(value);
+                if (!string.IsNullOrEmpty(_formatString))
+                {
+                    return dblValue.ToString(_formatString);
+                }
+                return dblValue.ToString($"F{_precision}") + (string.IsNullOrEmpty(_unit) ? "" : $" {_unit}");
+            }
+            catch
+            {
+                return value.ToString();
+            }
+        }
+
+        /// <summary>
+        /// 格式化布尔值
+        /// </summary>
+        private string FormatBoolean(object value)
+        {
+            try
+            {
+                bool boolValue = Convert.ToBoolean(value);
+                return boolValue ? "是" : "否";
+            }
+            catch
+            {
+                return value.ToString();
+            }
+        }
+
+        /// <summary>
+        /// 格式化日期时间
+        /// </summary>
+        private string FormatDateTime(object value)
+        {
+            try
+            {
+                DateTime dateValue = Convert.ToDateTime(value);
+                if (!string.IsNullOrEmpty(_formatString))
+                {
+                    return dateValue.ToString(_formatString);
+                }
+                return dateValue.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+            catch
+            {
+                return value.ToString();
+            }
+        }
+
+        /// <summary>
+        /// 获取类型的默认名称
+        /// </summary>
+        private string GetTypeName(ParameterType type)
+        {
+            switch (type)
+            {
+                case ParameterType.String: return "字符串";
+                case ParameterType.Integer: return "整数";
+                case ParameterType.Double: return "浮点数";
+                case ParameterType.Decimal: return "十进制数";
+                case ParameterType.Boolean: return "布尔值";
+                case ParameterType.DateTime: return "日期时间";
+                case ParameterType.Color: return "颜色";
+                case ParameterType.Point: return "点坐标";
+                default: return "未知类型";
+            }
+        }
+
+        /// <summary>
+        /// 获取类型的默认值
+        /// </summary>
+        private object GetDefaultValueForType(ParameterType type)
+        {
+            switch (type)
+            {
+                case ParameterType.String: return "";
+                case ParameterType.Integer: return 0;
+                case ParameterType.Double: return 0.0;
+                case ParameterType.Decimal: return 0m;
+                case ParameterType.Boolean: return false;
+                case ParameterType.DateTime: return DateTime.Now;
+                case ParameterType.Color: return "#000000";
+                case ParameterType.Point: return "(0,0)";
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// 添加允许值
+        /// </summary>
+        public void AddAllowedValue(object value)
+        {
+            if (value != null && !_allowedValues.Contains(value))
+            {
+                _allowedValues.Add(value);
+                OnPropertyChanged(nameof(AllowedValues));
+            }
+        }
+
+        /// <summary>
+        /// 移除允许值
+        /// </summary>
+        public bool RemoveAllowedValue(object value)
+        {
+            if (value != null && _allowedValues.Remove(value))
+            {
+                OnPropertyChanged(nameof(AllowedValues));
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 设置自定义属性
+        /// </summary>
+        public void SetCustomAttribute(string key, object value)
+        {
+            if (!string.IsNullOrEmpty(key))
+            {
+                _customAttributes[key] = value;
+                OnPropertyChanged(nameof(CustomAttributes));
+            }
+        }
+
+        /// <summary>
+        /// 获取自定义属性
+        /// </summary>
+        public object GetCustomAttribute(string key)
+        {
+            if (_customAttributes.ContainsKey(key))
+            {
+                return _customAttributes[key];
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 复制特性
+        /// </summary>
+        public ParameterProperty Clone()
+        {
+            var clone = new ParameterProperty
+            {
+                Name = _name,
+                DisplayName = _displayName,
+                Description = _description,
+                Type = _type,
+                DefaultValue = _defaultValue,
+                CurrentValue = _currentValue,
+                IsReadOnly = _isReadOnly,
+                IsVisible = _isVisible,
+                Category = _category,
+                MinValue = _minValue,
+                MaxValue = _maxValue,
+                Precision = _precision,
+                FormatString = _formatString,
+                Unit = _unit,
+                IsRequired = _isRequired,
+                ValidationRule = _validationRule,
+                CreationTime = DateTime.Now,
+                LastModified = DateTime.Now,
+                AllowedValues = new List<object>(_allowedValues),
+                CustomAttributes = new Dictionary<string, object>(_customAttributes)
+            };
+
+            return clone;
+        }
+
+        /// <summary>
+        /// 属性Changed事件
+        /// </summary>
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        /// <summary>
+        /// 触发属性Changed事件
+        /// </summary>
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        /// <summary>
+        /// ToString方法
+        /// </summary>
+        public override string ToString()
+        {
+            return $"ParameterProperty: {DisplayName} ({TypeName}) = {FormattedValue}";
+        }
+    }
+
+    /// <summary>
+    /// 参数类型枚举
+    /// </summary>
+    [DataContract]
+    public enum ParameterType
+    {
+        [EnumMember]
+        String = 1,      // 字符串
+        [EnumMember]
+        Integer = 2,     // 整数
+        [EnumMember]
+        Double = 3,      // 浮点数
+        [EnumMember]
+        Decimal = 4,     // 十进制数
+        [EnumMember]
+        Boolean = 5,     // 布尔值
+        [EnumMember]
+        DateTime = 6,    // 日期时间
+        [EnumMember]
+        Color = 7,       // 颜色
+        [EnumMember]
+        Point = 8        // 点坐标
+    }
+}
+
+===========================================
+💡 数据模型说明
+===========================================
+
+这些数据模型提供了完整的功能：
+
+✅ **LookupTableData** - 查寻表数据模型
+- 完整的查寻表数据管理
+- 输入和查寻特性管理
+- 行数据的增删改查
+- 数据验证和匹配功能
+- JSON序列化支持
+
+✅ **LookupTableRow** - 查寻表行数据
+- 输入值和输出值管理
+- 行数据验证
+- 匹配算法实现
+- 复制和克隆功能
+
+✅ **ParameterProperty** - 参数特性模型
+- 多种参数类型支持
+- 值验证和格式化
+- 自定义属性和验证规则
+- 数据绑定支持
+- 完整的属性管理
+
+这些模型类提供了完整的数据结构，可以直接用于UI绑定和数据持久化。
+
+🎉 现在您拥有了完整的数据模型实现！

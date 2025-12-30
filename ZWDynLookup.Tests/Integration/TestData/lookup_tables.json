@@ -1,0 +1,40 @@
+{
+  "lookupTables": [
+    {
+      "id": "material_table_001",
+      "name": "材料类型查找表",
+      "description": "用于存储各种建筑材料的类型和属性信息",
+      "columns": [
+        { "name": "Code", "type": "string", "isRequired": true, "description": "材料代码" },
+        { "name": "Name", "type": "string", "isRequired": true, "description": "材料名称" },
+        { "name": "Category", "type": "string", "isRequired": true, "description": "材料类别" }
+      ],
+      "rows": [
+        {
+          "Code": "STEEL",
+          "Name": "钢材",
+          "Category": "金属材料"
+        },
+        {
+          "Code": "CONCRETE",
+          "Name": "混凝土",
+          "Category": "建筑材料"
+        },
+        {
+          "Code": "WOOD",
+          "Name": "木材",
+          "Category": "建筑材料"
+        }
+      ],
+      "createdAt": "2024-01-01T00:00:00Z",
+      "isActive": true
+    }
+  ],
+  "testMetadata": {
+    "version": "1.0",
+    "createdAt": "2024-01-01T00:00:00Z",
+    "description": "集成测试用查找表数据",
+    "totalTables": 1,
+    "purpose": "用于验证动态查找表系统的集成测试"
+  }
+}

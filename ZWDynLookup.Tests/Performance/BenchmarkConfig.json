@@ -1,0 +1,167 @@
+{
+  "TestSizes": {
+    "Small": 100,
+    "Medium": 1000,
+    "Large": 10000,
+    "ExtraLarge": 100000,
+    "StressTest": 500000
+  },
+  "Thresholds": {
+    "SmallTableResponseTime": 100,
+    "MediumTableResponseTime": 500,
+    "LargeTableResponseTime": 2000,
+    "ExtraLargeTableResponseTime": 5000,
+    "StressTestResponseTime": 10000,
+    "MaxMemoryUsage": 1073741824,
+    "MaxConcurrentUsers": 100,
+    "MaxBatchSize": 1000,
+    "MaxUpdateSize": 10000
+  },
+  "Iterations": {
+    "Performance": 10,
+    "Memory": 5,
+    "ResponseTime": 20,
+    "Concurrency": 5,
+    "StressTest": 3,
+    "Warmup": 3
+  },
+  "Concurrency": {
+    "MinThreads": 2,
+    "MaxThreads": 50,
+    "ThreadIncrement": 2,
+    "OperationsPerThread": 100,
+    "Timeout": 30000
+  },
+  "Memory": {
+    "MaxMemoryGrowth": 52428800,
+    "GCCollections": 3,
+    "ForceGC": true,
+    "MonitorMemoryLeaks": true
+  },
+  "Timing": {
+    "Precision": "Millisecond",
+    "WarmupEnabled": true,
+    "MeasureCPU": true,
+    "MeasureMemory": true
+  },
+  "Reporting": {
+    "GenerateMarkdownReport": true,
+    "GenerateCSVReport": true,
+    "GenerateJSONReport": true,
+    "ReportDirectory": "./TestReports/",
+    "IncludeCharts": true,
+    "IncludeDetails": true
+  },
+  "TestCategories": {
+    "Performance": true,
+    "Memory": true,
+    "ResponseTime": true,
+    "Concurrency": true,
+    "StressTest": false,
+    "UI": true,
+    "LoadTest": false
+  },
+  "DataGeneration": {
+    "RandomSeed": 12345,
+    "GenerateComplexData": true,
+    "IncludeRelationships": true,
+    "MaxFieldLength": 255,
+    "FieldTypes": [
+      "String",
+      "Integer",
+      "Double",
+      "Boolean",
+      "DateTime",
+      "Guid"
+    ]
+  },
+  "TestScenarios": {
+    "BasicLookup": {
+      "Enabled": true,
+      "Sizes": ["Small", "Medium", "Large"],
+      "Iterations": 20
+    },
+    "BatchOperations": {
+      "Enabled": true,
+      "BatchSizes": [10, 50, 100, 500, 1000],
+      "Iterations": 10
+    },
+    "ConcurrentAccess": {
+      "Enabled": true,
+      "ThreadCounts": [2, 5, 10, 20],
+      "OperationsPerThread": 50,
+      "Iterations": 5
+    },
+    "MemoryStress": {
+      "Enabled": false,
+      "Sizes": ["ExtraLarge", "StressTest"],
+      "Iterations": 3,
+      "Duration": 60000
+    },
+    "UIInteraction": {
+      "Enabled": true,
+      "InteractionTypes": ["Selection", "Filter", "Sort", "Refresh"],
+      "Iterations": 15
+    }
+  },
+  "BenchmarkTargets": {
+    "LookupLatency": {
+      "Small": 10,
+      "Medium": 25,
+      "Large": 50,
+      "ExtraLarge": 100
+    },
+    "LoadTime": {
+      "Small": 50,
+      "Medium": 200,
+      "Large": 1000,
+      "ExtraLarge": 3000
+    },
+    "MemoryPerRecord": {
+      "Small": 100,
+      "Medium": 150,
+      "Large": 200,
+      "ExtraLarge": 300
+    },
+    "Throughput": {
+      "OperationsPerSecond": 1000,
+      "ConcurrentUsers": 50,
+      "BatchSize": 500
+    }
+  },
+  "Monitoring": {
+    "EnablePerformanceCounters": true,
+    "EnableGCMonitoring": true,
+    "EnableThreadMonitoring": true,
+    "SampleInterval": 100,
+    "MaxSampleCount": 1000
+  },
+  "Environment": {
+    "OS": "AutoDetect",
+    "ProcessorCount": "AutoDetect",
+    "AvailableMemory": "AutoDetect",
+    "DotNetVersion": "AutoDetect"
+  },
+  "Output": {
+    "DetailedLogs": true,
+    "ConsoleOutput": true,
+    "FileLogging": true,
+    "LogLevel": "Information",
+    "TimestampFormat": "yyyy-MM-dd HH:mm:ss.fff"
+  },
+  "Validation": {
+    "EnableAssertions": true,
+    "FailOnWarning": false,
+    "Tolerance": 0.1,
+    "CompareBaseline": false,
+    "BaselineFile": "./baseline_results.json"
+  },
+  "Optimization": {
+    "EnableParallelExecution": true,
+    "MaxDegreeOfParallelism": 4,
+    "OptimizeForSize": "Medium",
+    "UseMemoryPool": true,
+    "EnableCaching": true,
+    "CacheSize": 1000
+  }
+}

@@ -1,0 +1,85 @@
+中望CAD动态块查寻插件 - 完整说明
+=====================================
+
+📁 项目位置: /workspace/CAD开发/ZWDynLookup/
+📦 压缩包: /workspace/CAD开发/ZWDynLookupPlugin.tar.gz
+
+🎯 插件功能概述:
+✅ BPARAMETER K命令 - 创建查寻参数
+✅ BACTIONTOOL L命令 - 创建查寻动作  
+✅ 查寻表配置界面
+✅ 查寻标签和运行时菜单
+✅ 完整用户文档和API文档
+
+📂 核心文件列表:
+
+命令实现文件 (Commands/):
+- BParameterCommand.cs (541行) - BPARAMETER命令实现
+- BActionToolCommand.cs (541行) - BACTIONTOOL命令实现
+- LookupParameterCreator.cs - 查寻参数创建器
+- LookupActionCreator.cs - 查寻动作创建器
+- GripManager.cs - 夹点管理器
+- ParameterPointManager.cs - 参数点管理器
+- ActionSelectionManager.cs - 动作选择管理器
+- SelectionSetManager.cs - 选择集管理器
+- LookupTableCommand.cs - 查寻表命令
+- PropertiesCommand.cs - 特性命令
+
+数据模型文件 (Models/):
+- LookupTableData.cs - 查寻表数据模型
+- ParameterProperty.cs - 参数特性模型
+
+服务类文件 (Service/):
+- LookupTagManager.cs - 查寻标签管理器
+- LookupMenuService.cs - 查寻菜单服务
+- BlockReferenceHelper.cs - 块引用助手
+- GraphicsUpdateService.cs - 图形更新服务
+
+UI界面文件 (UI/):
+- LookupTableDialog.xaml/.cs - 查寻表对话框
+- AddParameterPropertyDialog.xaml/.cs - 添加特性对话框
+- RuntimeLookupMenu.xaml/.cs - 运行时菜单
+- LookupContextMenu.xaml/.cs - 上下文菜单
+- ParameterPropertiesDialog.xaml/.cs - 参数属性对话框
+- ActionPropertiesDialog.cs - 动作属性对话框
+- PropertyGridControl.xaml/.cs - 属性网格控件
+- 其他UI文件...
+
+核心文件 (根目录):
+- PluginEntry.cs (200行) - 插件主入口
+- ZWDynLookup.csproj - 项目配置文件
+- ZWDynLookup.sln - 解决方案文件
+- README.md - 项目说明文档
+
+文档文件 (docs/):
+- 用户使用手册.md (607行) - 详细使用指南
+- 部署指南.md - 安装部署说明
+- API参考文档.md - 开发者API文档
+- 故障排除指南.md - 问题解决方案
+- 项目说明汇总.md - 项目总体说明
+
+🔧 编译要求:
+- Visual Studio 2019+
+- .NET Framework 4.8
+- 中望CAD开发包 (ZWCAD)
+- 引用: ZwSoft.ZwCAD.dll
+
+🚀 主要命令:
+- ZWBPARAMETER - 创建查寻参数
+- ZWBACTIONTOOL - 创建查寻动作
+- ZWBLOOKUPTABLE - 管理查寻表
+- ZWBPROPERTIES - 管理参数特性
+
+📋 使用流程 (按您的查寻功能步骤):
+步骤1: 使用其他类型参数命令创建基础参数
+步骤2: 使用ZWBPARAMETER创建查寻参数和参数动作
+步骤3: 使用ZWBACTIONTOOL创建查寻动作和查寻表
+步骤4: 运行时使用查寻菜单进行参数切换
+
+✅ 质量保证:
+- 53个文件，150KB压缩包
+- 完整的异常处理和错误处理
+- 详细的代码注释和文档
+- 模块化设计，易于扩展
+
+🎉 插件已完全按照您的AutoCAD查寻功能需求实现！
